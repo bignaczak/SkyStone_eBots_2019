@@ -282,6 +282,11 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         motorList.add(backLeft);
         motorList.add(backRight);
 
+        for (DcMotor m: motorList){
+            m.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            m.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        }
+
     }
 
     public void initializeManipMotors(){
