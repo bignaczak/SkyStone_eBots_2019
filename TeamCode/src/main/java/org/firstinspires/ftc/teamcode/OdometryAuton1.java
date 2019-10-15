@@ -8,46 +8,39 @@ import java.util.ArrayList;
 @Autonomous
 public class OdometryAuton1 extends eBotsOpMode2019 {
 
-    private static Double initialGyroOffset;
-
-    public Double getInitialGyroOffset(){
-        return initialGyroOffset;
-    }
-
     @Override
     public void runOpMode(){
 
         ArrayList<DcMotor> motorList= new ArrayList<>();
         initializeDriveMotors(motorList, false);
 
+        //  Set starting pose and capture gyro offset
         final Pose startingPose = new Pose(Pose.StartingPose.RED_FOUNDATION);
+
+        //  Set target pose
         final Pose targetPose = new Pose(startingPose.getX(), 0.0, startingPose.getHeading());
-        Pose currentPose = new Pose(startingPose.getX(), startingPose.getY(), startingPose.getHeading());
-        initialGyroOffset = getCurrentHeading() + startingPose.getHeading();
 
         final double pGain = 0.3;
         final double iGain = 0.15;
 
         Integer loopCount = 0;
 
-        double xError;
-        double yError;
-        double totalError;
-        double headingError;  //In Degrees
-        double errorSum = 0;
+        Double pSignal;
+        Double iSignal;
+        Double computedSignal=0.0;
+        Double previousSignalSign=0.0;
+        Double outputSignal;
 
-        double pSignal;
-        double iSignal;
-        double computedSignal;
-        double outputSignal;
-
-        boolean isSaturated;
-        boolean hasErrorSumChangedSign;
+        Boolean isSaturated = true;
+        Boolean driveSignalSignChange = false;  //  When heading is locked, the headingError only
+                                        //  gets recalculated when driveSignal changes sign
+                                        //  This allows for the I portion of the PID controller
+                                        //  to overshoot the target position
 
 
         //This is the angle the robot needs to travel relative to the robot's angle
         //This assumes that forward is 0 degress, 90 degrees is traveling left
-        double robotTravelAngle;
+        double robotTravelAngleRad;
 
         //this is the angle that must be passed into the calculateDrive
         double robotAngle;
@@ -58,10 +51,18 @@ public class OdometryAuton1 extends eBotsOpMode2019 {
         EncoderTracker forwardTracker = new EncoderTracker(motorList.get(0), EncoderTracker.RobotOrientation.FORWARD);
 
         EncoderTracker lateralTracker = new EncoderTracker(motorList.get(1), EncoderTracker.RobotOrientation.LATERAL);
+
+        //  *********  INITIALIZE FOR FIRST PASS THROUGH LOOP   *****************
+        //  Create currentPose, which is the tracked position from start to target
+        TrackingPose currentPose = new TrackingPose(startingPose, targetPose);
+        currentPose.setInitialGyroOffset(getCurrentHeading());
+
         //Get the initial error value
-        xError = currentPose.getXError(targetPose);
-        yError = currentPose.getYError(targetPose);
-        totalError = Math.hypot(xError, yError);
+        currentPose.calculatePoseError();
+
+        //xError = currentPose.getXError(targetPose);
+        //yError = currentPose.getYError(targetPose);
+        //totalError = Math.hypot(xError, yError);
 
 
         //***************************************************************
@@ -70,42 +71,45 @@ public class OdometryAuton1 extends eBotsOpMode2019 {
         //***************************************************************
         waitForStart();
 
-        writeOdometryTelemetry(loopCount, totalError);
+        writeOdometryTelemetry(loopCount, currentPose.getSignedError(), currentPose);
 
         while(opModeIsActive() &&
-                Math.abs(totalError + errorSum) <0.1){
+                (currentPose.getErrorMagnitude() + Math.abs(currentPose.getErrorSum()) > 0.2)){
 
+            if (loopCount>0){  //For every iteration after the first
+                EncoderTracker.getNewPose(currentPose);               //update position if not first loop
+                currentPose.setHeadingFromGyro(getCurrentHeading());  //Update heading with robot orientation
+                currentPose.calculatePoseError();                     //Update error object
 
-            if (loopCount>0){
-                //update position if not first loop
-                currentPose = EncoderTracker.getNewPose(currentPose);
-                xError = currentPose.getXError(targetPose);
-                yError = currentPose.getYError(targetPose);
-                totalError = Math.hypot(xError, yError);
+                //Compute a new ErrorSum for the Integrator
+                //  if BOTH of the following conditions are met, don't add the integrator
+                //  -->signal can't be saturated in previous iteration (!isSaturated)
+                //  -->error sign same as error Sum (evalutes to true if errorSum 0)
+                currentPose.updateErrorSum(isSaturated);
             }
 
-            pSignal = pGain * totalError;
-            iSignal = iGain * errorSum;
+            pSignal = pGain * currentPose.getErrorMagnitude();
+            iSignal = iGain * currentPose.getErrorSum();
+
+            previousSignalSign = Math.signum(computedSignal);
             computedSignal = pSignal + iSignal;
-            isSaturated = (computedSignal > 1) ? true : false;
+            isSaturated = computedSignal > 1 ? true : false;
 
-            if (isSaturated){
-                outputSignal = 1;
+            if (    loopCount == 0 |
+                    (previousSignalSign == Math.signum(computedSignal)))
+            {
+                driveSignalSignChange = false;
             } else {
-                outputSignal = computedSignal;
+                driveSignalSignChange = true;
             }
 
-            //Which way the robot needs to travel relative to the field
-            headingError = Math.toDegrees(Math.atan2(yError, xError));
+            currentPose.setHeadingErrorLocked(isSaturated, driveSignalSignChange);
+            outputSignal = (isSaturated) ? 1 : computedSignal;
 
             //Which way the robot needs to travel relative to the robot forward direction
-            robotTravelAngle = getRobotLocalHeading(headingError, startingPose);
+            robotTravelAngleRad = Math.toRadians(currentPose.getGyroDriveDirection());
 
-            //Robot angle calculates the angle (in radians) and then subtracts pi/4 (45 degrees) from it
-            //The 45 degree shift aligns the mecanum vectors for drive
-            robotAngle = Math.toRadians(robotTravelAngle - 45);
-            calculateDriveVector(outputSignal, robotAngle, 0, driveValues);     //Calculate motor drive speeds
-
+            calculateFieldOrientedDriveVector(robotTravelAngleRad, currentPose.getHeadingRad(),outputSignal,0,driveValues);
             //Now actually assign the calculated drive values to the motors in motorList
             int i = 0;
             for (DcMotor m : motorList) {
@@ -113,27 +117,21 @@ public class OdometryAuton1 extends eBotsOpMode2019 {
                 i++;
             }
 
-
             loopCount++;
 
-            writeOdometryTelemetry(loopCount, totalError);
-
+            writeOdometryTelemetry(loopCount, currentPose.getSignedError(), currentPose);
         }
 
 
     }
 
-    private void writeOdometryTelemetry(Integer loopCount, double totalError) {
+    private void writeOdometryTelemetry(Integer loopCount, double totalError, TrackingPose currentPose) {
         telemetry.addData("Loop Count: ", loopCount);
-        telemetry.addData("Total Error: ", totalError);
+        telemetry.addData("Total Error: ", currentPose.getSignedError());
+        telemetry.addData("Heading Locked: ", currentPose.isHeadingErrorLocked());
+        telemetry.addData("Heading Error: ", currentPose.getHeadingError());
+
         telemetry.update();
     }
 
-    public double getRobotFieldOrientedHeading(){
-        return getCurrentHeading() + initialGyroOffset;
-    }
-
-    private static double getRobotLocalHeading (Double targetFieldHeading, Pose startingPose){
-        return targetFieldHeading - startingPose.getHeading();
-    }
 }

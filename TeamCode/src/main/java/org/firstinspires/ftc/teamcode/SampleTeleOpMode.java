@@ -13,7 +13,7 @@ public class SampleTeleOpMode extends eBotsOpMode2019 {
 
     ArrayList<DcMotor> motorList= new ArrayList<>();
 
-    initializeDriveMotors(motorList, false);
+    initializeDriveMotors(motorList, true);
 
     telemetry.addData("Status", "Motor Power Set, Ready");
     telemetry.update();

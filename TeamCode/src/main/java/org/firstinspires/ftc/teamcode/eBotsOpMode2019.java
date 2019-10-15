@@ -323,6 +323,8 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
 
     }
 
+
+
     public static void calculateDriveVector(double driveMagnitude, double robotAngle, double spin, double[] outputArray){
         //Create an array of the drive values
         //[Element] --> Wheel
@@ -342,9 +344,9 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         //Divide all drive values by the max value to achieve a new max value of 1
         if (maxValue > 1) scaleDrive(1/maxValue, outputArray);
     }
-    public static void calculateFieldOrientedDriveVector(double driveAngle ,double heading ,double drivePower, double spinPower, double[] outputArray){
+    public static void calculateFieldOrientedDriveVector(double driveAngleRad ,double headingRad ,double drivePower, double spinPower, double[] outputArray){
         //This calculation returns drive vectors but relies on field orientated vectors
-        //for driveAngle and currentHeading
+        //for driveAngleRad and headingRad (both in radians)
         //Importantly, the rotationAngleGyroOriented is consistent with gyro, positive is spin to left
         //Spin is provided as a percentage of total value
         //[Element] --> Wheel
@@ -352,7 +354,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         //  [1] --> Front Right
         //  [2] --> Back Left
         //  [3] --> Back Right
-        double robotAngle = driveAngle - heading + Math.PI/4;
+        double robotAngle = driveAngleRad - headingRad + Math.PI/4;
         //Note, now that spin is field orientated, indices 0&2 are negative while 1&3 are positive
         outputArray[0] = (Math.cos(robotAngle) * drivePower) - spinPower;
         outputArray[1] = Math.sin(robotAngle) * drivePower + spinPower;
