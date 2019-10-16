@@ -32,8 +32,8 @@ public class TrackingPose extends Pose {
         this.setY(startingPose.getY());
         this.setHeading(startingPose.getHeading());
         this.targetPose = targetPose;
-        this.poseError = new PoseError(this);
         this.headingErrorLocked = false;
+        this.poseError = new PoseError(this);
     }
 
     //***************************************************************88
@@ -44,7 +44,7 @@ public class TrackingPose extends Pose {
         //  This is run right after creating the tracking pose
         //  This captures the rotation required to bring the field coordinates frame in line with the
         //  the robot coordinate system
-        initialGyroOffset = gyroReading + this.getHeading();
+        initialGyroOffset = this.getHeading() - gyroReading;
     }
 
     public void calculatePoseError(){
@@ -54,15 +54,19 @@ public class TrackingPose extends Pose {
     }
 
     //  Robot local heading determines which way the robot needs to move
-    public double getGyroDriveDirection(){
-        return this.getHeadingError() - this.getHeading();
+    public Double getGyroDriveDirection(){
+        Double gyroDriveDirection = this.getHeadingError() - this.initialGyroOffset;
+        gyroDriveDirection = applyAngleBound(gyroDriveDirection);
+        return gyroDriveDirection;
+    }
+
+    public Double getGyroDriveDirectionRad(){
+        return Math.toRadians(this.getGyroDriveDirection());
     }
 
     public void setHeadingFromGyro(Double gyroHeading){
         Double fieldHeading = gyroHeading + this.initialGyroOffset;
-        if (  (fieldHeading <= -180)   |    (fieldHeading > 180)   ){
-            fieldHeading = TrackingPose.applyAngleBound(fieldHeading);
-        }
+        fieldHeading = applyAngleBound(fieldHeading);
         this.setHeading(fieldHeading);
     }
 
@@ -78,14 +82,16 @@ public class TrackingPose extends Pose {
         return this.poseError.getHeading();
     }
 
+    public Double getHeadingErrorRad(){
+        return Math.toRadians(this.getHeadingError());
+    }
+
     public Double getXError(){
-        Double xError = this.targetPose.getX() - this.getX();
-        return xError;
+        return this.targetPose.getX() - this.getX();
     }
 
     public Double getYError(){
-        Double yError = this.targetPose.getY() - this.getY();
-        return yError;
+        return this.targetPose.getY() - this.getY();
     }
 
     public Double getErrorSum(){

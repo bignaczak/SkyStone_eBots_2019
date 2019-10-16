@@ -65,7 +65,7 @@ public class PoseError {
 
         this.magnitude = Math.hypot(xError, yError);
 
-        //Recalculate heading error as long as it is not locked
+        //Calculate heading error if it is not locked
         //  It gets locked to allow the Integrator (ErrorSum) to unwind
         //  Which allows for overshoot prior to changing directions
         if (!currentPose.isHeadingErrorLocked()) {

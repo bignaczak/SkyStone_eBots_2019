@@ -38,12 +38,10 @@ public class OdometryAuton1 extends eBotsOpMode2019 {
                                         //  to overshoot the target position
 
 
-        //This is the angle the robot needs to travel relative to the robot's angle
+        //This is the angle the robot needs to travel relative to the robot's reference frame
         //This assumes that forward is 0 degress, 90 degrees is traveling left
         double robotTravelAngleRad;
 
-        //this is the angle that must be passed into the calculateDrive
-        double robotAngle;
 
         //These values get calculated by calculateDriveVector function
         double[] driveValues = new double[4];  //Array of values for the motor power levels
@@ -54,11 +52,17 @@ public class OdometryAuton1 extends eBotsOpMode2019 {
 
         //  *********  INITIALIZE FOR FIRST PASS THROUGH LOOP   *****************
         //  Create currentPose, which is the tracked position from start to target
+        //  This is a special type of pose that is intended to track the path of travel
+        //  It has a targetPose, which is the intended destination
+        //  It also has an error object which tracks it's status relative to targetPose
         TrackingPose currentPose = new TrackingPose(startingPose, targetPose);
+
+        //This is called only once to document offset of gyro from field coordinate system
         currentPose.setInitialGyroOffset(getCurrentHeading());
 
         //Get the initial error value
-        currentPose.calculatePoseError();
+        //NOT NEEDED, Initial error is calculated when Tracking Pose instantiated
+        //currentPose.calculatePoseError();
 
         //xError = currentPose.getXError(targetPose);
         //yError = currentPose.getYError(targetPose);
@@ -107,14 +111,13 @@ public class OdometryAuton1 extends eBotsOpMode2019 {
             outputSignal = (isSaturated) ? 1 : computedSignal;
 
             //Which way the robot needs to travel relative to the robot forward direction
-            robotTravelAngleRad = Math.toRadians(currentPose.getGyroDriveDirection());
+            robotTravelAngleRad = currentPose.getGyroDriveDirectionRad();
 
-            calculateFieldOrientedDriveVector(robotTravelAngleRad, currentPose.getHeadingRad(),outputSignal,0,driveValues);
+            calculateFieldOrientedDriveVector(currentPose.getHeadingErrorRad(), robotTravelAngleRad,outputSignal,0,driveValues);
             //Now actually assign the calculated drive values to the motors in motorList
-            int i = 0;
-            for (DcMotor m : motorList) {
-                m.setPower(driveValues[i]);
-                i++;
+
+            for(int i=0;i<motorList.size();i++){
+                motorList.get(i).setPower(driveValues[i]);
             }
 
             loopCount++;
