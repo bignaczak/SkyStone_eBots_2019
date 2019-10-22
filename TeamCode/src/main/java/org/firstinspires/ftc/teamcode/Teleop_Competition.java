@@ -302,7 +302,7 @@ public class Teleop_Competition extends LinearOpMode {
             //The 45 degree shift aligns the mecanum vectors for drive
             robotAngle = Math.atan2(driveY, driveX) - Math.PI / 4;
             calculateDriveVector(r, robotAngle, spin, driveValues);     //Calculate motor drive speeds
-
+            //Math.atan2
             //Now allow for fine maneuvering by allowing a slow mode when pushing trigger
             //Trigger is an analog input between 0-1, so it allows for variable adjustment of speed
             //Now scale the drive values based on the level of the trigger

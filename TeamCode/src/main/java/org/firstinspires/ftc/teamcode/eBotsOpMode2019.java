@@ -359,9 +359,15 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         outputArray[0] = (Math.cos(robotAngle) * drivePower) - spinPower;
         outputArray[1] = Math.sin(robotAngle) * drivePower + spinPower;
         outputArray[2] = Math.sin(robotAngle) * drivePower - spinPower;
-        outputArray[3] = Math.cos(robotAngle) * drivePower + spinPower;;
+        outputArray[3] = Math.cos(robotAngle) * drivePower + spinPower;
 
-        //Don't scale the drive vector
+        //Now capture the max drive value from the array
+        double maxValue = findMaxAbsValue(outputArray);
+
+        //If any of the values exceed 1, then all drive values must be scaled
+        //Divide all drive values by the max value to achieve a new max value of 1
+        if (maxValue > 1) scaleDrive(1/maxValue, outputArray);
+
     }
 
     public static void scaleDrive (double scaleFactor, double[] driveArray){

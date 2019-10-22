@@ -21,6 +21,10 @@ public class PoseError {
                                 //    to reach target position
 
 
+    private Double errorControlValue;  //This is used to determine the required accuracy to exit a control loop
+                                    //  It combines the present error with the ErrorSum (including sign)
+
+
     //***************************************************************88
     //******    SIMPLE GETTERS AND SETTERS
     //***************************************************************88
@@ -28,6 +32,7 @@ public class PoseError {
     public Integer getSignOfMagnitude() {return signOfMagnitude;}
     public Double getHeading() {return heading;}
     public Double getErrorSum() {return errorSum;}
+    public Double getErrorControlValue() {return errorControlValue;}
 
 
     //***************************************************************88
@@ -38,13 +43,17 @@ public class PoseError {
         this.signOfMagnitude = -1;
         this.heading = 0.0;
         this.errorSum = 0.0;
+        this.calculateErrorControlValue();
     }
 
-    public PoseError(TrackingPose currentPose) {
-        calculateError(currentPose);
 
+
+    public PoseError(TrackingPose currentPose) {
         //  Set the errorSum to zero when instantiated
         this.errorSum = 0.0;
+        calculateError(currentPose);
+
+
     }
     //***************************************************************88
     //******    METHODS
@@ -63,23 +72,23 @@ public class PoseError {
         double xError = currentPose.getXError();
         double yError = currentPose.getYError();
 
-        this.magnitude = Math.hypot(xError, yError);
+        this.magnitude = Math.hypot(Math.abs(xError), Math.abs(yError));
 
         //Calculate heading error if it is not locked
         //  It gets locked to allow the Integrator (ErrorSum) to unwind
         //  Which allows for overshoot prior to changing directions
-        if (!currentPose.isHeadingErrorLocked()) {
+        //  This is now handledd by travelDirection in TrackingPose class
+        //if (!currentPose.isHeadingErrorLocked()) {
             //  atan2 returns an angle between -180 < theta <= 180
-            this.heading = Math.toDegrees(Math.atan2(yError, xError));
-        }
+        //TODO: Clean this up if it works
+        this.heading = Math.toDegrees(Math.atan2(yError, xError));
+        //}
         //  For PID control loop, it is useful to associate a signOfMagnitude to the angle
         //    NEGATIVE ->   -180 < theta <= 0       (yep, zero is negative now)
         //    POSITIVE ->      0 < theta <= 180
-        if (this.heading <= 0){
-            this.signOfMagnitude = -1;
-        } else {
-            this.signOfMagnitude = 1;
-        }
+        signOfMagnitude = PoseError.getSignOfHeading(this.heading);
+        this.calculateErrorControlValue();
+
 
     }
 
@@ -103,5 +112,22 @@ public class PoseError {
         } else {
             this.errorSum += this.getSignedError();
         }
+
+        this.calculateErrorControlValue();
+    }
+
+    private void calculateErrorControlValue() {
+        this.errorControlValue = this.magnitude + Math.abs(this.errorSum);
+    }
+
+    //***************************************************************88
+    //******    STATIC METHODS
+    //***************************************************************88
+
+    public static Integer getSignOfHeading(Double inputHeading){
+        //  For PID control loop, it is useful to associate a signOfMagnitude to the angle
+        //    NEGATIVE ->   -180 < theta <= 0       (yep, zero is negative now)
+        //    POSITIVE ->      0 < theta <= 180
+        return (inputHeading<=0)? -1 : 1;
     }
 }

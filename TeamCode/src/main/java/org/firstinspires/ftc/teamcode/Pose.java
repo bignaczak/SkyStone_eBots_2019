@@ -1,5 +1,7 @@
 package org.firstinspires.ftc.teamcode;
 
+import static java.lang.String.format;
+
 public class Pose {
     //****   Pose represents the robots position AND heading relative to field coordinates
 
@@ -53,6 +55,7 @@ public class Pose {
     //***************************************************************88
 
     public Pose(){}     //Default constructor
+
     public Pose (Double xInput, Double yInput, Double headingInput){
         this.x = xInput;
         this.y = yInput;
@@ -100,6 +103,9 @@ public class Pose {
     //******    METHODS
     //***************************************************************88
 
-
+    @Override
+    public String toString(){
+        return "(" + format("%.2f",x) + " ," + format("%.2f",y) + " @ " + format("%.2f",heading) + ")";
+    }
 
 }

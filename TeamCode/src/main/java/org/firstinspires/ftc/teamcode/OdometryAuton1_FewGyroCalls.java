@@ -8,11 +8,11 @@ import java.util.ArrayList;
 
 @Autonomous
 @Disabled
-public class OdometryAuton1 extends eBotsOpMode2019 {
+public class OdometryAuton1_FewGyroCalls extends eBotsOpMode2019 {
 
     private Boolean useGyroForNavigation = true;
-    private Integer gyroCallFrequency = 1;
-    private Double saturationLimit =0.5 ;
+    private Integer gyroCallFrequency = 100;   //loop interval between calls to gyro heading
+    private Double saturationLimit = 1.0;
 
     @Override
     public void runOpMode(){
@@ -24,7 +24,7 @@ public class OdometryAuton1 extends eBotsOpMode2019 {
         final Pose startingPose = new Pose(Pose.StartingPose.RED_FOUNDATION);
 
         //  Set target pose
-        final Pose targetPose = new Pose(startingPose.getX(), 0.0, startingPose.getHeading());
+        final Pose targetPose = new Pose(startingPose.getX(), 27.0, startingPose.getHeading());
 
         final double pGain = 0.3;
         final double iGain = 0.15;
@@ -69,7 +69,7 @@ public class OdometryAuton1 extends eBotsOpMode2019 {
 
         StopWatch stopWatch = new StopWatch();
         String loopMetrics = stopWatch.toString(loopCount);
-        //writeOdometryTelemetry(loopMetrics, currentPose, forwardTracker);
+        writeOdometryTelemetry(loopMetrics, currentPose, forwardTracker);
 
         //***************************************************************
         //  END OF OPMODE INITIALIZATION
@@ -80,13 +80,14 @@ public class OdometryAuton1 extends eBotsOpMode2019 {
 
         stopWatch.startTimer();
 
+
         while(opModeIsActive() &&
                 (currentPose.getErrorMagnitude() + Math.abs(currentPose.getErrorSum()) > 0.2)){
 
             if (loopCount>0){  //For every iteration after the first
                 EncoderTracker.getNewPose(currentPose);               //update position if not first loop
 
-                if (useGyroForNavigation) {
+                if (useGyroForNavigation && (loopCount % gyroCallFrequency == 0)) {
                     currentPose.setHeadingFromGyro(getCurrentHeading());  //Update heading with robot orientation
                 }
                 currentPose.calculatePoseError();                     //Update error object
@@ -134,12 +135,12 @@ public class OdometryAuton1 extends eBotsOpMode2019 {
 
         //Once the cycle is completed, hold the telemetry for 5 seconds
         StopWatch timer = new StopWatch();
-        timer.startTimer();
         loopMetrics = stopWatch.toString(loopCount);
 
         while (timer.getElapsedTimeSeconds() < 5){
             writeOdometryTelemetry(loopMetrics, currentPose, forwardTracker);
         }
+
     }
 
     private void writeOdometryTelemetry(String loopMetrics, TrackingPose currentPose, EncoderTracker encoder1) {
