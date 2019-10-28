@@ -79,6 +79,7 @@ public class EncoderTracker {
     public EncoderTracker (DcMotor motor, RobotOrientation robotOrientation){
         this.motor = motor;
         this.motor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        this.motor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         this.robotOrientation = robotOrientation;
         this.currentClicks = this.getClicks();
         this.cumulativeDistance = 0.0;
@@ -169,7 +170,7 @@ public class EncoderTracker {
         trackingPose.setX(newX);
         trackingPose.setY(newY);
 
-        Log.d(debugTag + " Ending", trackingPose.toString());
+        //Log.d(debugTag + " Ending", trackingPose.toString());
 
         //trackingPose.setHeading();        //Add this once the 3rd encoder is installed
     }

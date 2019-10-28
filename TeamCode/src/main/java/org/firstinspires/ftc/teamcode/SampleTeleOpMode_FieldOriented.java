@@ -3,10 +3,12 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 
+import org.firstinspires.ftc.robotcore.external.Telemetry;
+
 import java.util.ArrayList;
 
 @TeleOp
-public class SampleTeleOpMode extends eBotsOpMode2019 {
+public class SampleTeleOpMode_FieldOriented extends eBotsOpMode2019 {
 
 @Override
     public void runOpMode(){
@@ -15,6 +17,7 @@ public class SampleTeleOpMode extends eBotsOpMode2019 {
 
     if (motorList.size()>1) motorList.clear();  //Make sure there aren't any items in the list
     initializeDriveMotors(motorList, true);
+    initializeImu();
 
     telemetry.addData("Status", "Motor Power Set, Ready");
     telemetry.update();
@@ -45,13 +48,16 @@ public class SampleTeleOpMode extends eBotsOpMode2019 {
     //These values get calculated by calculateDriveVector function
     double[] driveValues = new double[4];  //Array of values for the motor power levels
     double maxValue;                        //Identify ax value in driveValues array
-
+    Double radHeading = 0.0;
 
     //***************************************************************
     //  END OF OPMODE INITIALIZATION
     //  Wait for the game to start(driver presses PLAY)
     //***************************************************************
     waitForStart();
+    telemetry.clear();
+    telemetry.update();
+
     while(opModeIsActive()) {
         //GAMEPAD1 INPUTS
         //----------------------------------------
@@ -61,20 +67,24 @@ public class SampleTeleOpMode extends eBotsOpMode2019 {
         //  [LEFT TRIGGER] --> Variable reduction in robot speed to allow for fine position adjustment
         //  [RIGHT BUMPER] --> Speed boost, maximized motor drive speed
 
-        driveX = gamepad1.left_stick_x;        //Read left stick position for left/right motion
+        driveX = -gamepad1.left_stick_x;        //Read left stick position for left/right motion
         driveY = -gamepad1.left_stick_y;       //Read left stick position for forward/reverse Motion
-        spin = gamepad1.right_stick_x * spinScaleFactor; //This is used to determine how to spin the robot
+        spin = -gamepad1.right_stick_x * spinScaleFactor; //This is used to determine how to spin the robot
         fineAdjust = gamepad1.left_trigger;     //Pull to slow motion
         speedBoostOn = gamepad1.right_bumper;   //Push to maximize motor drives
 
         //r gives the left stick's offset from 0 position by calculating hypotenuse of x and y offset
         r = Math.hypot(driveX, driveY);
 
-        //Robot angle calculates the angle (in radians) and then subtracts pi/4 (45 degrees) from it
-        //The 45 degree shift aligns the mecanum vectors for drive
-        robotAngle = Math.atan2(driveY, driveX) - Math.PI / 4;
-        calculateDriveVector(r, robotAngle, spin, driveValues);     //Calculate motor drive speeds
+        //Robot angle is 0 when stick pointing right
+        //  this assumes that the user is standing in the same direction of the robot front during
+        //  imu initialization.  Therefore pushing stick forward drives forward
 
+        robotAngle = Math.atan2(driveX, driveY);  //  NOTE:  x AND y are reversed in this formula from other OpModes
+
+        //calculateDriveVector(r, robotAngle, spin, driveValues);     //Calculate motor drive speeds
+        radHeading = getRadHeading();
+        calculateFieldOrientedDriveVector(robotAngle, radHeading,r,spin,driveValues);
         //Now allow for fine maneuvering by allowing a slow mode when pushing trigger
         //Trigger is an analog input between 0-1, so it allows for variable adjustment of speed
         //Now scale the drive values based on the level of the trigger
@@ -108,9 +118,17 @@ public class SampleTeleOpMode extends eBotsOpMode2019 {
             m.setPower(driveValues[i]);
             i++;
         }
+
+        writeTelemetry(radHeading, robotAngle);
     }
 
 
 }
+
+    public void writeTelemetry(Double radHeading, Double robotAngle){
+        telemetry.addData("Heading/DriveAngle", Math.toDegrees(radHeading) + " | " + robotAngle.toString());
+        telemetry.update();
+}
+
 
 }

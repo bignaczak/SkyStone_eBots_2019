@@ -1,11 +1,13 @@
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 
 import java.util.ArrayList;
 
 @TeleOp
+@Disabled
 public class testRobot extends eBotsOpMode2019 {
 
     private Boolean skipMotorInit = false;

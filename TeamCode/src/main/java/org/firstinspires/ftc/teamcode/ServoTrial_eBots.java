@@ -51,7 +51,7 @@ import com.qualcomm.robotcore.hardware.ServoControllerEx;
  * Remove or comment out the @Disabled line to add this opmode to the Driver Station OpMode list
  */
 @TeleOp(name = "Concept: Scan Servo", group = "Concept")
-//@Disabled
+@Disabled
 public class ServoTrial_eBots extends LinearOpMode {
 
     static final double INCREMENT   = 0.01;     // amount to slew servo each CYCLE_MS cycle

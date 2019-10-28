@@ -1,11 +1,15 @@
 package org.firstinspires.ftc.teamcode;
 
+import android.util.Log;
+
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static java.lang.String.format;
 
 //@Disabled
 @TeleOp
@@ -331,11 +335,14 @@ public class Teleop_Competition extends LinearOpMode {
             }
 
             //Now actually assign the calculated drive values to the motors in motorList
+            Log.d("BTI_BeforeSet", printActualMotorPowers(motorList));
+            Log.d("BTI_Calc", printMotorDriveInstructions(motorList, driveValues));
             int i=0;
             for (DcMotor m: motorList){
                 m.setPower(driveValues[i]);
                 i++;
             }
+            Log.d("BTI_AfterSet", printActualMotorPowers(motorList));
 
             //GAMEPAD 2 INPUTS
             //  Y Button        --> arm angle positive direction
@@ -571,4 +578,27 @@ public class Teleop_Competition extends LinearOpMode {
             telemetry.update();
         }
     }
+
+    public String printMotorDriveInstructions(List<DcMotor> motorList, double[] driveValues){
+        StringBuilder outputString = new StringBuilder();
+        for(Integer i=0; i<motorList.size(); i++){
+            if(i>0) outputString.append(" | ");
+            outputString.append("Motor_" + i.toString());
+            outputString.append(" Port" + motorList.get(i).getPortNumber());
+            outputString.append(" [" + format("%.2f", driveValues[i]) + "]");
+        }
+        return outputString.toString();
+    }
+
+    public String printActualMotorPowers(List<DcMotor> motorList){
+        StringBuilder outputString = new StringBuilder();
+        for(Integer i=0; i<motorList.size(); i++){
+            if(i>0) outputString.append(" | ");
+            outputString.append("Motor_" + i.toString());
+            outputString.append(" Actual Power:" + motorList.get(i).getPortNumber());
+            outputString.append(" [" + format("%.2f", motorList.get(i).getPower()) + "]");
+        }
+        return outputString.toString();
+    }
+
 }

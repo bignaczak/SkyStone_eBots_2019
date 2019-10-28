@@ -39,6 +39,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 
+import static java.lang.String.format;
+
 public abstract class eBotsOpMode2019 extends LinearOpMode {
 
     //private Gyroscope imu;
@@ -604,6 +606,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         }
     }
 
+
     public boolean turnToFieldHeading (double desiredFieldHeadingInDegrees, ArrayList<DcMotor> motors){
         // Field heading is the imu direction based on the assumed zero point from lander
         // This command calculates the turn inputs for twistToAngle function and calls it
@@ -622,6 +625,65 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
             return false;
         }
     }
+
+    public Boolean turnToFieldHeading (TrackingPose trackingPose, Double speed, ArrayList<DcMotor> motors){
+        // Field heading is the imu direction based on the assumed zero point from lander
+        // This command calculates the turn inputs for twistToAngle function and calls it
+        // Angles in this routine are in DEGREES (unless otherwise noted)
+
+        //requiredTurnAngle is in DEGREES when calculated using TrackingPose, also FO sign
+        double requiredTurnAngle = checkHeadingVersusTarget(trackingPose);  //How many angles must turn
+
+        //must reverse sign for twistToAngle routine (too scared to fix)
+        twistToAngle(-requiredTurnAngle,speed, motors);
+
+        //Note:  turnError is initially returned in Radians
+        double turnError = checkHeadingVersusTarget(trackingPose);
+        turnError = turnError;  //This is returned in DEGREES
+
+        if(Math.abs(turnError)<2){
+            return true;
+        }else{
+            return false;
+        }
+    }
+    public double checkHeadingVersusTarget(TrackingPose trackingPose){
+        //Check the heading at the end of the move and correct it if necessary
+        //target heading should be in radians
+        //Return value is in radians
+        //The sign of the return angle, when considering gyro-oriented vectors (CCW is positive)
+        //uses the target as the basis and error value orients to the current heading
+        //so the if target is 0 and heading is -pi/2, the return is -pi/2
+        Double trackingPoseHeadingRad = trackingPose.getHeadingRad();
+        Double trackingPoseTargetheadingRad = trackingPose.getTargetPose().getHeadingRad();
+        getCurrentHeading();
+
+        //NOTE:  angleErrorFieldOriented is calculated based on the field-oriented sign, CCW is positive
+        double angleErrorFieldOriented = Math.toDegrees(trackingPoseTargetheadingRad - trackingPoseHeadingRad);
+        angleErrorFieldOriented = TrackingPose.applyAngleBound(angleErrorFieldOriented);
+        //If large error, assume that crossover has occurred
+        return angleErrorFieldOriented;  //Note, this is returned in DEGREES
+    }
+
+
+    public double checkHeadingVersusTarget(double targetHeadingInRadians){
+        //Check the heading at the end of the move and correct it if necessary
+        //target heading should be in radians
+        //Return value is in radians
+        //The sign of the return angle, when considering gyro-oriented vectors (CCW is positive)
+        //uses the target as the basis and error value orients to the current heading
+        //so the if target is 0 and heading is -pi/2, the return is -pi/2
+        getCurrentHeading();
+        double headingError = Math.toRadians(currentHeading)-targetHeadingInRadians;
+        //If large error, assume that crossover has occurred
+        if (Math.abs(headingError)> Math.toRadians(180)){
+            //Correct the heading error caused by crossover
+            //This math was tested in Google Sheets
+            headingError = (2* Math.PI - Math.abs(headingError)) * Math.signum(targetHeadingInRadians);
+        }
+        return headingError;  //Note, this is returned in Radians
+    }
+
 
     public void performDriveStepTimedTranslateAndSpin(ArrayList<DcMotor> motors, double driveAngle, double driveTime, double spinPower, double drivePower, double[] driveValues, double headingTarget, boolean stopOnRollLimit) {
         int[] currentMotorPositions = new int[4];
@@ -976,23 +1038,6 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         }
     }
 
-    public double checkHeadingVersusTarget(double targetHeadingInRadians){
-        //Check the heading at the end of the move and correct it if necessary
-        //target heading should be in radians
-        //Return value is in radians
-        //The sign of the return angle, when considering gyro-oriented vectors (CCW is positive)
-        //uses the target as the basis and error value orients to the current heading
-        //so the if target is 0 and heading is -pi/2, the return is -pi/2
-        getCurrentHeading();
-        double headingError = Math.toRadians(currentHeading)-targetHeadingInRadians;
-        //If large error, assume that crossover has occurred
-        if (Math.abs(headingError)> Math.toRadians(180)){
-            //Correct the heading error caused by crossover
-            //This math was tested in Google Sheets
-            headingError = (2* Math.PI - Math.abs(headingError)) * Math.signum(targetHeadingInRadians);
-        }
-        return headingError;  //Note, this is returned in Radians
-    }
 
     private void getMotorPositions(int[] currentPositions, ArrayList<DcMotor> motors) {
         for(int i=0; i<currentPositions.length; i++){
@@ -1874,4 +1919,94 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
             return (int) (Math.random()*2000);
         }
     }
+
+    public String printMotorDriveInstructions(ArrayList<DcMotor> motorList, double[] driveValues){
+        StringBuilder outputString = new StringBuilder();
+        for(Integer i=0; i<motorList.size(); i++){
+            if(i>0) outputString.append(" | ");
+            outputString.append("Motor_" + i.toString());
+            outputString.append(" Port" + motorList.get(i).getPortNumber());
+            outputString.append(" [" + format("%.2f", driveValues[i]) + "]");
+        }
+        return outputString.toString();
+    }
+
+    public String printActualMotorPowers(ArrayList<DcMotor> motorList){
+        StringBuilder outputString = new StringBuilder();
+        for(Integer i=0; i<motorList.size(); i++){
+            if(i>0) outputString.append(" | ");
+            outputString.append("Motor_" + i.toString());
+            outputString.append(" Actual Power:" + motorList.get(i).getPortNumber());
+            outputString.append(" [" + format("%.2f", motorList.get(i).getPower()) + "]");
+        }
+        return outputString.toString();
+    }
+
+    public String printMotorDriveInstructions(List<DcMotor> motorList, double[] driveValues){
+        StringBuilder outputString = new StringBuilder();
+        for(Integer i=0; i<motorList.size(); i++){
+            if(i>0) outputString.append(" | ");
+            outputString.append("Motor_" + i.toString());
+            outputString.append(" Port" + motorList.get(i).getPortNumber());
+            outputString.append(" [" + format("%.2f", driveValues[i]) + "]");
+        }
+        return outputString.toString();
+    }
+
+    public String printActualMotorPowers(List<DcMotor> motorList){
+        StringBuilder outputString = new StringBuilder();
+        for(Integer i=0; i<motorList.size(); i++){
+            if(i>0) outputString.append(" | ");
+            outputString.append("Motor_" + i.toString());
+            outputString.append(" Actual Power:" + motorList.get(i).getPortNumber());
+            outputString.append(" [" + format("%.2f", motorList.get(i).getPower()) + "]");
+        }
+        return outputString.toString();
+    }
+    public void setWayPoses(ArrayList<Pose> wayPoses){
+
+        /*
+        //Red Foundation
+        wayPoses.add(new Pose(Pose.StartingPose.RED_FOUNDATION));
+        //travel in the positive Y direction to midline
+        wayPoses.add(new Pose(12.0, 9.0, 90.0));
+        //travel back 12 inches
+        wayPoses.add(new Pose(40.0, 12.0, 90.0));
+        //travel to blue foundation start point
+        wayPoses.add(new Pose(40.0, -36.0, 90.0));
+        */
+
+        /*Red Quarry
+        wayPoses.add(new Pose(Pose.StartingPose.RED_QUARRY));
+        //travel in the positive Y direction to midline
+        wayPoses.add(new Pose(-12.0, -47.0, 90.0));
+        //travel back 12 inches
+        wayPoses.add(new Pose(-52.0, -47.0, 90.0));
+        //travel to blue foundation start point
+        wayPoses.add(new Pose(52.0, -47.0, 90.0));
+        */
+
+        /*
+        //Blue Quarry
+        wayPoses.add(new Pose(Pose.StartingPose.BLUE_QUARRY));
+        //travel in the positive Y direction to midline
+        wayPoses.add(new Pose(-12.0, 50.0, -90.0));
+        //travel back 12 inches
+        wayPoses.add(new Pose(-52.0, 50.0, -90.0));
+        //travel to blue foundation start point
+        wayPoses.add(new Pose(52.0, 50.0, -90.0));
+        */
+
+
+        //Blue Foundation
+        wayPoses.add(new Pose(Pose.StartingPose.BLUE_FOUNDATION));
+        //travel in the positive Y direction to midline
+        wayPoses.add(new Pose(22.0, -9.0, -90.0));
+        //travel back 12 inches
+        wayPoses.add(new Pose(52.0, -12.00, -90.0));
+        //travel to blue foundation start point
+        wayPoses.add(new Pose(52.0, 42.0, -90.0));
+
+    }
+
 }

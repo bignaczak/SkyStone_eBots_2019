@@ -11,9 +11,9 @@ import java.util.List;
 import static java.lang.String.format;
 
 @Autonomous
-public class OdometryAuton1_NoGyroCalls extends eBotsOpMode2019 {
+public class OdometryAuton1_YESGyroCalls extends eBotsOpMode2019 {
 
-    private Boolean useGyroForNavigation = false;
+    private Boolean useGyroForNavigation = true;
     private Integer gyroCallFrequency = 1;
     private Double saturationLimit = 0.4;
 
@@ -64,9 +64,9 @@ public class OdometryAuton1_NoGyroCalls extends eBotsOpMode2019 {
 
         Boolean isSaturated = true;
         Boolean driveSignalSignChange = false;  //  When heading is locked, the headingError only
-                                        //  gets recalculated when driveSignal changes sign
-                                        //  This allows for the I portion of the PID controller
-                                        //  to overshoot the target position
+        //  gets recalculated when driveSignal changes sign
+        //  This allows for the I portion of the PID controller
+        //  to overshoot the target position
 
 
         //This is the angle the robot needs to travel relative to the robot's reference frame
@@ -113,7 +113,7 @@ public class OdometryAuton1_NoGyroCalls extends eBotsOpMode2019 {
 
         //while(opModeIsActive() && currentPose.getErrorControlValue() > 0.5 && loopCount < 5000){
         while(opModeIsActive() && currentPose.getErrorMagnitude() > 0.2){
-        //while(opModeIsActive() && loopCount<299){
+            //while(opModeIsActive() && loopCount<299){
             Log.d("BTI_ruOpMode", "*******" + loopCount.toString());
             Log.d("BTI_ruOpMode", "numEncoders" + EncoderTracker.getEncoderTrackerCount());
 
@@ -142,7 +142,7 @@ public class OdometryAuton1_NoGyroCalls extends eBotsOpMode2019 {
 
             //pSignal = pGain * currentPose.getErrorMagnitude();
             pSignal = pGain * currentPose.getSignedError();  //Sign is important as the integrator unwinds
-                                                            //  During overshoot, need proportional signal to negate errorSum
+            //  During overshoot, need proportional signal to negate errorSum
 
             iSignal = iGain * currentPose.getErrorSum();  //Note: this can be negative
 
@@ -155,12 +155,12 @@ public class OdometryAuton1_NoGyroCalls extends eBotsOpMode2019 {
             if (    loopCount == 0 |
                     (previousSignalSign == Math.signum(computedSignal))) {
 
-                    driveSignalSignChange = false;
-                    signChangeDebug = "No Sign Change";
-                } else {
-                    driveSignalSignChange = true;
-                    signChangeDebug = "Yes Sign Change";
-                }
+                driveSignalSignChange = false;
+                signChangeDebug = "No Sign Change";
+            } else {
+                driveSignalSignChange = true;
+                signChangeDebug = "Yes Sign Change";
+            }
 
 
             currentPose.setHeadingErrorLocked(isSaturated, driveSignalSignChange);

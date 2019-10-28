@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.hardware.rev.RevBlinkinLedDriver;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 
@@ -11,6 +12,7 @@ import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 
 @TeleOp
+@Disabled
 public class testRobot_2mLED extends eBotsOpMode2019 {
 
     private Boolean skipMotorInit = false;

@@ -54,6 +54,7 @@ public class TrackingPose extends Pose {
     public Double getTravelDirectionRad() {return Math.toRadians(travelDirection);}
     public Boolean isHeadingErrorLocked(){return headingErrorLocked; }
     public Pose getTargetPose(){return this.targetPose;}
+    public Double getInitialGyroOffset(){return this.initialGyroOffset;}
 
 
     //***************************************************************88
@@ -66,6 +67,8 @@ public class TrackingPose extends Pose {
         //  the robot coordinate system
         initialGyroOffset = this.getHeading() - gyroReading;
     }
+
+
 
     public void calculatePoseError(){
         //  Calculate the pose error between the new position and target Pose
@@ -80,6 +83,8 @@ public class TrackingPose extends Pose {
         return gyroDriveDirection;
     }
 
+
+
     public Double getGyroDriveDirectionRad(){
         return Math.toRadians(this.getGyroDriveDirection());
     }
@@ -90,6 +95,12 @@ public class TrackingPose extends Pose {
 
     public void setHeadingFromGyro(Double gyroHeading){
         Double fieldHeading = gyroHeading + this.initialGyroOffset;
+        fieldHeading = applyAngleBound(fieldHeading);
+        this.setHeading(fieldHeading);
+    }
+
+    public void setHeadingFromGyro(Double gyroHeading, Double previousInitialGyroOffset){
+        Double fieldHeading = gyroHeading + previousInitialGyroOffset;
         fieldHeading = applyAngleBound(fieldHeading);
         this.setHeading(fieldHeading);
     }

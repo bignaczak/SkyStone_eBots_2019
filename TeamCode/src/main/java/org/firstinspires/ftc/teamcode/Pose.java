@@ -24,10 +24,10 @@ public class Pose {
     //******    ENUMERATIONS
     //***************************************************************88
     public enum StartingPose{
-        RED_FOUNDATION (12.0, -27.0, 90.0)
-        , BLUE_FOUNDATION (12.0, 27.0, -90.0)
-        , RED_QUARRY (-12.0, -27.0, 90.0)
-        , BLUE_QUARRY (-12.0, 27.0, -90.0);
+        RED_FOUNDATION (-12.0, -62.0, 90.0)
+        , BLUE_FOUNDATION (22.0, 62.0, -90.0)
+        , RED_QUARRY (-12.0, -62.0, 90.0)
+        , BLUE_QUARRY (-12.0, 62.0, -90.0);
 
         private double xStart;
         private double yStart;
