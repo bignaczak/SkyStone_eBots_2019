@@ -4,6 +4,7 @@ import android.util.Log;
 
 import com.qualcomm.hardware.bosch.BNO055IMU;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.hardware.DcMotor;
 
 import java.util.ArrayList;
@@ -11,6 +12,7 @@ import java.util.ArrayList;
 import static java.lang.String.format;
 
 @Autonomous
+@Disabled
 public class OdometryAuton_MultiStep extends eBotsOpMode2019 {
 
     //***************************************************************88
@@ -57,9 +59,9 @@ public class OdometryAuton_MultiStep extends eBotsOpMode2019 {
 
         Integer wayPoseIndex = 1;
         wayPoses = new ArrayList<>();
-        wayPoses.clear();       // get rid of pre-existing poses
+        if (wayPoses.size() > 0) wayPoses.clear();       // get rid of pre-existing poses
 
-        setWayPoses(wayPoses);
+        setWayPoses(wayPoses, Alliance.RED, FieldSide.QUARRY);
         //  *********  INITIALIZE FOR FIRST PASS THROUGH LOOP   *****************
         //  Create currentPose, which is the tracked position from start to target
         //  This is a special type of pose that is intended to track the path of travel

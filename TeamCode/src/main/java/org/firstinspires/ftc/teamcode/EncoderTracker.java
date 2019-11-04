@@ -192,6 +192,6 @@ public class EncoderTracker {
     }
 
     public static void purgeExistingEncoderTrackers(){
-        encoders.clear();
+        if (encoders.size() > 0) encoders.clear();
     }
 }

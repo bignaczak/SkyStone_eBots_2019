@@ -96,6 +96,10 @@ public class Pose {
     }
 
     public void setHeading(Double heading) {
+        /** Sets heading, but makes sure it is within the legal bounds
+         *  which is -180 < heading <= 180
+         */
+        heading = TrackingPose.applyAngleBound(heading);
         this.heading = heading;
     }
 

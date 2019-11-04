@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import static java.lang.String.format;
 
 @Autonomous
-public class OdometryAuton_MultiStep_Twist extends eBotsOpMode2019 {
+public class OdometryAuton_MultiStep_Twist2 extends eBotsOpMode2019 {
 
     //***************************************************************88
     //******    CONFIGURATION PARAMETERS
@@ -27,8 +27,9 @@ public class OdometryAuton_MultiStep_Twist extends eBotsOpMode2019 {
     private final double iGain = 0.0;  //0.005;
 
 
-    private Boolean softStartActive = true;
+    private Boolean useSoftStart = true;
     private Long softStartDurationMillis = 750L;
+    private Double minPowerLimit = 0.20;
 
 
     //***************************************************************88
@@ -43,7 +44,7 @@ public class OdometryAuton_MultiStep_Twist extends eBotsOpMode2019 {
     private EncoderTracker forwardTracker;
     private EncoderTracker lateralTracker;
     private ArrayList<Pose> wayPoses;
-
+    //***************************************************************88
 
 
     @Override
@@ -180,6 +181,8 @@ public class OdometryAuton_MultiStep_Twist extends eBotsOpMode2019 {
         String loopMetrics;
         Double previousSignalSign=0.0;
         Boolean isSaturated = true;
+        Boolean isLowPower = false;
+        Boolean softStartActive = true;
         Boolean driveSignalSignChange = false;  //  When heading is locked, the headingError only
                                                 //  gets recalculated when driveSignal changes sign
                                                 //  This allows for the I portion of the PID controller
@@ -226,7 +229,15 @@ public class OdometryAuton_MultiStep_Twist extends eBotsOpMode2019 {
             previousSignalSign = Math.signum(computedSignal);
             computedSignal = pSignal + iSignal;     //This can be negative and sign is important
 
+            //Set some power states for later uses
             isSaturated = Math.abs(computedSignal) > saturationLimit ? true : false;  //consider magnitude only
+            isLowPower =  Math.abs(computedSignal) < minPowerLimit   ? true : false;  //power is below motor stall condition
+
+            if (useSoftStart && stopWatch.getElapsedTimeMillis() < softStartDurationMillis){
+                softStartActive = true;
+            } else {
+                softStartActive = false;
+            }
 
             String signChangeDebug;
             if (    loopCount == 0 |
@@ -239,19 +250,25 @@ public class OdometryAuton_MultiStep_Twist extends eBotsOpMode2019 {
                 signChangeDebug = "[**Yes** Sign Change]";
             }
 
-
             currentPose.setHeadingErrorLocked(isSaturated, driveSignalSignChange);
             currentPose.updateTravelDirection();
-            outputSignal = (isSaturated) ? saturationLimit : Math.abs(computedSignal);  //Note: always positive unlike computed signal
 
+            //Apply bounds to the output signal:
+            //      ** Clip high end at saturationLimit
+            //      ** Clip low end at minPowerLimit
+            //      ** If within transient period, ramp down the power
+            outputSignal = (isSaturated) ? saturationLimit : Math.abs(computedSignal);  //Note: always positive unlike computed signal
+            outputSignal = (isLowPower)  ? minPowerLimit   : outputSignal;
+            if (softStartActive) outputSignal = applySoftStartScaling(stopWatch);
 
             Log.d("BTI_ruOpMode", printDriveSignalMetrics() + "--" + signChangeDebug);
 
-
             calculateFieldOrientedDriveVector(currentPose.getTravelDirectionRad(), currentPose.getHeadingRad(),outputSignal,0,driveValues);
-
-            //Add a delay if using simulated devices
-            //if (simulateMotors) sleep(100);
+            //Scale the drive vector to so the max motor speed equals the outputSignal value
+            //The calculation can generate values less than outputSignal
+            //This scaling provides better speed control
+            maxValue = findMaxAbsValue(driveValues);  //See what the max drive value is set to
+            scaleDrive(outputSignal/maxValue, driveValues);  //If max value isn't same as outputSignal, scale so it is
 
             loopEndTime = stopWatch.getElapsedTimeMillis();
             loopDuration = loopEndTime - loopStartTime;
@@ -262,9 +279,6 @@ public class OdometryAuton_MultiStep_Twist extends eBotsOpMode2019 {
                 EncoderTracker.updateVirtualEncoders(outputSignal,loopDuration, currentPose);
 
             } else {
-                maxValue = findMaxAbsValue(driveValues);  //See what the max drive value is set to
-                scaleDrive(saturationLimit/maxValue, driveValues);  //If max value isn't 1, Scale the values up so max is 1
-
                 //Now actually assign the calculated drive values to the motors in motorList
                 for (int i = 0; i < motorList.size(); i++) {
                     motorList.get(i).setPower(driveValues[i]);
@@ -291,5 +305,15 @@ public class OdometryAuton_MultiStep_Twist extends eBotsOpMode2019 {
         }
         trackingPose.setInitialGyroOffset(gyroReading);
 
+    }
+
+    private Double applySoftStartScaling(StopWatch stopWatch){
+        /**     This function calculates the Soft Start scaling
+         */
+        //First calculate he acceleration slope
+        Double accelSlope = (outputSignal - minPowerLimit) / softStartDurationMillis;
+        Long t = stopWatch.getElapsedTimeMillis();
+        Double softStartScale = (accelSlope * t) + minPowerLimit;
+        return softStartScale;
     }
 }

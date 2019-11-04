@@ -7,7 +7,7 @@ import com.qualcomm.robotcore.hardware.Servo;
 import java.util.ArrayList;
 
 @TeleOp
-public class SampleTeleOpMode2 extends eBotsOpMode2019 {
+public class Competition2019 extends eBotsOpMode2019 {
 
     //------CONSTANTS FOR SERVO POSITIONS
     private final Double RAKE_DOWN = 0.82;

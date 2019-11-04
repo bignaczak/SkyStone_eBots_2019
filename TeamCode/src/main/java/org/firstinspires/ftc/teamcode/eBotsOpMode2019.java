@@ -347,7 +347,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         if (maxValue > 1) scaleDrive(1/maxValue, outputArray);
     }
     public static void calculateFieldOrientedDriveVector(double driveAngleRad ,double headingRad ,double drivePower, double spinPower, double[] outputArray){
-        //This calculation returns drive vectors but relies on field orientated vectors
+        /**This calculation returns drive vectors but relies on field orientated vectors
         //for driveAngleRad and headingRad (both in radians)
         //Importantly, the rotationAngleGyroOriented is consistent with gyro, positive is spin to left
         //Spin is provided as a percentage of total value
@@ -356,6 +356,10 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         //  [1] --> Front Right
         //  [2] --> Back Left
         //  [3] --> Back Right
+        */
+
+        if (drivePower > 1.0) drivePower = 1.0;     //Error Check input
+
         double robotAngle = driveAngleRad - headingRad + Math.PI/4;
         //Note, now that spin is field orientated, indices 0&2 are negative while 1&3 are positive
         outputArray[0] = (Math.cos(robotAngle) * drivePower) - spinPower;
@@ -366,10 +370,11 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         //Now capture the max drive value from the array
         double maxValue = findMaxAbsValue(outputArray);
 
+
         //If any of the values exceed 1, then all drive values must be scaled
+        //Typically, this happens when spin is added to the drive signal
         //Divide all drive values by the max value to achieve a new max value of 1
         if (maxValue > 1) scaleDrive(1/maxValue, outputArray);
-
     }
 
     public static void scaleDrive (double scaleFactor, double[] driveArray){
@@ -1963,6 +1968,62 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         }
         return outputString.toString();
     }
+
+    public enum Alliance{
+        RED
+        , BLUE
+    }
+
+    public enum FieldSide{
+        FOUNDATION
+        , QUARRY
+    }
+    public void setWayPoses(ArrayList<Pose> wayPoses, Alliance alliance, FieldSide fieldSide) {
+        /**  This function sets the wayPoses for blue side and then applies a
+         * transformation by mirroring about the X axis for position and pose
+         */
+
+        //These waypoints are for the blue side
+        if (fieldSide == FieldSide.FOUNDATION){
+            //Blue Foundation
+            wayPoses.add(new Pose(39.0, 60.0, 90.0));
+            //travel in the positive Y direction to midline
+            wayPoses.add(new Pose(50.0, 34.0, 90.0));
+            //travel back 12 inches
+            wayPoses.add(new Pose(54.0, 56.0, 90.0));
+            //travel to blue foundation start point
+            wayPoses.add(new Pose(22.0, 56.0, 90.0));
+            //travel back 12 inches
+            wayPoses.add(new Pose(22.0, 16.0, 90.0));
+            //travel to blue foundation start point
+            wayPoses.add(new Pose(48.0, 16.0, 90.0));
+            //travel to blue foundation start point
+            wayPoses.add(new Pose(48.0, 40.0, 90.0));
+            //travel to blue foundation start point
+            wayPoses.add(new Pose(48.0, 0.0, 180.0));
+            //travel to blue foundation start point
+            wayPoses.add(new Pose(-48.0, 0.0, 180.0));
+        } else{
+            wayPoses.add(new Pose(Pose.StartingPose.BLUE_QUARRY));
+            //travel in the positive Y direction to midline
+            wayPoses.add(new Pose(-12.0, 50.0, -90.0));
+            //travel back 12 inches
+            wayPoses.add(new Pose(-52.0, 50.0, -90.0));
+            //travel to blue foundation start point
+            wayPoses.add(new Pose(52.0, 50.0, -90.0));
+        }
+
+        //  Apply the transformation.
+        //  -->  Change sign of Y position
+        //  -->  Change sign of Heading
+        if (alliance == Alliance.RED){
+            for (Pose p:wayPoses){
+                p.setY(-p.getY());      //Flip sign for X
+                p.setHeading(-p.getHeading());  //The called method checks heading bounds (so -180 will become 180)
+            }
+        }
+    }
+
     public void setWayPoses(ArrayList<Pose> wayPoses){
 
         /*
@@ -1998,6 +2059,10 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         */
 
 
+
+
+
+        /*  This is the first iteration
         //Blue Foundation
         wayPoses.add(new Pose(Pose.StartingPose.BLUE_FOUNDATION));
         //travel in the positive Y direction to midline
@@ -2006,7 +2071,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         wayPoses.add(new Pose(52.0, -12.00, -90.0));
         //travel to blue foundation start point
         wayPoses.add(new Pose(52.0, 42.0, -90.0));
-
+        */
     }
 
 }
