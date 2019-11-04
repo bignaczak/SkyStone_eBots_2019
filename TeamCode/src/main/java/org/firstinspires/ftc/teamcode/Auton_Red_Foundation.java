@@ -4,10 +4,7 @@ import android.util.Log;
 
 import com.qualcomm.hardware.bosch.BNO055IMU;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
-import com.qualcomm.robotcore.eventloop.opmode.Disabled;
-import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.Servo;
 
 import java.util.ArrayList;
 
@@ -15,7 +12,7 @@ import static java.lang.String.format;
 
 @Autonomous
 
-public class OdometryAuton_MultiStep_Twist2 extends eBotsOpMode2019 {
+public class Auton_Red_Foundation extends eBotsOpMode2019 {
 
     //***************************************************************88
     //******    CONFIGURATION PARAMETERS
@@ -24,7 +21,7 @@ public class OdometryAuton_MultiStep_Twist2 extends eBotsOpMode2019 {
     private Boolean simulateMotors = false;
     private Boolean useGyroForNavigation = true;
     private Integer gyroCallFrequency = 1;
-    private Double saturationLimit = 0.35;
+    private Double saturationLimit = 0.6;
     private Double headingAngleTolerance = 5.0;
     //private final double pGain = 0.2;
     private final double pGain = 0.15;
@@ -80,7 +77,7 @@ public class OdometryAuton_MultiStep_Twist2 extends eBotsOpMode2019 {
         Integer wayPoseIndex = 1;
         wayPoses = new ArrayList<>();
         if (wayPoses.size() > 0) wayPoses.clear();       // get rid of pre-existing poses
-        setWayPoses(wayPoses, Alliance.BLUE, FieldSide.FOUNDATION);
+        setWayPoses(wayPoses, Alliance.RED, FieldSide.FOUNDATION);
         //  *********  INITIALIZE FOR FIRST PASS THROUGH LOOP   *****************
         //  Create currentPose, which is the tracked position from start to target
         //  This is a special type of pose that is intended to track the path of travel

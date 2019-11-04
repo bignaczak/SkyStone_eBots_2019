@@ -4,6 +4,7 @@ import android.util.Log;
 
 import com.qualcomm.hardware.bosch.BNO055IMU;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.hardware.DcMotor;
 
 import java.util.ArrayList;
@@ -11,6 +12,7 @@ import java.util.ArrayList;
 import static java.lang.String.format;
 
 @Autonomous
+@Disabled
 public class OdometryAuton_MultiStep_Twist extends eBotsOpMode2019 {
 
     //***************************************************************88

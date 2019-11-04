@@ -5,17 +5,15 @@ import android.util.Log;
 import com.qualcomm.hardware.bosch.BNO055IMU;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
-import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.Servo;
 
 import java.util.ArrayList;
 
 import static java.lang.String.format;
 
 @Autonomous
-
-public class OdometryAuton_MultiStep_Twist2 extends eBotsOpMode2019 {
+@Disabled
+public class AUTON_BLUE_FOUNDATION_OBS extends eBotsOpMode2019 {
 
     //***************************************************************88
     //******    CONFIGURATION PARAMETERS
@@ -24,7 +22,7 @@ public class OdometryAuton_MultiStep_Twist2 extends eBotsOpMode2019 {
     private Boolean simulateMotors = false;
     private Boolean useGyroForNavigation = true;
     private Integer gyroCallFrequency = 1;
-    private Double saturationLimit = 0.35;
+    private Double saturationLimit = 0.6;
     private Double headingAngleTolerance = 5.0;
     //private final double pGain = 0.2;
     private final double pGain = 0.15;
@@ -50,17 +48,6 @@ public class OdometryAuton_MultiStep_Twist2 extends eBotsOpMode2019 {
     private ArrayList<Pose> wayPoses;
     //***************************************************************88
 
-
-    //***************************************************************88
-    //******    ENUMERATIONS
-    //***************************************************************88
-
-    public enum PostMoveActivity{
-        LOWER_RAKE,
-        RAISE_RAKE,
-        RAISE_LIFTER,
-        CYCLE_CLAW
-    }
 
     @Override
     public void runOpMode(){
@@ -117,22 +104,17 @@ public class OdometryAuton_MultiStep_Twist2 extends eBotsOpMode2019 {
 
         //Travel first leg
         Log.d("BTI_runOpMode", "~~~~~~~~~~~~~Starting LegStarting Leg " + wayPoseIndex.toString());
-
-        //***************************************************************
-        //  MAKE FIRST MOVE
         TrackingPose endPose = travelToNextPose(currentPose, motorList);
         Double previousInitialGyroOffset = currentPose.getInitialGyroOffset();
         if(!simulateMotors) stopMotors(motorList);
         wayPoseIndex++;
 
+        if (wayPoseIndex==2) lowerRake();
+
         Double currentPoseHeadingError;
         while(wayPoseIndex< wayPoses.size()) {
+            if (wayPoseIndex==3) raiseRake();
 
-            if (currentPose.getTargetPose().getPostMoveActivity() == Pose.PostMoveActivity.LOWER_RAKE){
-                lowerRake();
-            } else if (currentPose.getTargetPose().getPostMoveActivity() == Pose.PostMoveActivity.RAISE_RAKE){
-                raiseRake();
-            }
             //Correct heading angle if not good enough
             currentPoseHeadingError = Math.abs(currentPose.getHeading() - currentPose.getTargetPose().getHeading());
             if (currentPoseHeadingError > headingAngleTolerance){

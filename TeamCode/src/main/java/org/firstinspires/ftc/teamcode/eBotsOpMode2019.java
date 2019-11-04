@@ -7,8 +7,10 @@ import com.qualcomm.hardware.bosch.BNO055IMU;
 import com.qualcomm.hardware.bosch.JustLoggingAccelerationIntegrator;
 import com.qualcomm.hardware.rev.RevBlinkinLedDriver;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.hardware.rev.RevBlinkinLedDriver;
+import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.robotcore.external.ClassFactory;
 import org.firstinspires.ftc.robotcore.external.Func;
@@ -54,6 +56,17 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
     public DcMotor armExtensionMotor;
     public DcMotor collectMotor;
     public DcMotor latchMotor;
+    protected DcMotor lifter;
+    protected Servo foundationRake;
+    protected Servo rotate1ClawServo;
+    protected Servo rotate2ClawServo;
+    protected CRServo extendArm;
+    protected Servo claw;
+
+
+
+
+
 
     public BNO055IMU imu;          //Create a variable for the gyroscope on the Expansion Hub
     public double currentHeading;  //Angular direction in Degrees
@@ -75,6 +88,43 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
 
     //  DEFINE CONSTANTS FOR THE ROBOT
     //  THESE ARE ALL POSITIONS ASSUMED THE ROBOT IS COMPLETELY FOLDED PRIOR TO START OF AUTON
+    //------CONSTANTS FOR SERVO POSITIONS
+    protected final Double RAKE_DOWN = 0.90;
+    protected final Double RAKE_UP = 0.25;
+
+    protected final Double CLAW_OPEN = 0.390;
+    protected final Double CLAW_CLOSED = 0.05;
+
+    protected final Double ROTATE1_CLAW_FORWARD = 0.846;
+    protected final Double ROTATE1_CLAW_90 = 0.319;
+    protected final Double ROTATE_CLAW_PACK = 0.015;
+
+
+    protected final Double ROTATE2_CLAW_FORWARD = 0.798;
+    protected final Double ROTATE2_CLAW_90RIGHT = 0.289;
+
+    protected double foundationRakePosition;
+    protected double rotate1ClawPosition;
+    protected double rotate2ClawPosition;
+    protected double clawPosition;
+    protected Integer lifterPosition;
+
+    protected double timerLimit = 100;  //ms
+    protected double clawTimerLimit = 250;  //ms
+    protected double lifterTimerLimit = 250;  //ms
+
+    protected double rakeIncrement = 0.015;
+    protected double clawIncrement = 0.01;
+    protected Integer lifterIncrement = 400;
+    protected double rotate1ClawIncrement = 0.015;
+    protected double rotate2ClawIncrement = 0.015;
+    protected double liftPower = 0.0;
+
+    protected Boolean clawOpen = true;
+
+
+
+
     final static int ARM_ANGLE_COLLECT_POSITION = -11750;  //REAL POSITION
     //final static int ARM_ANGLE_COLLECT_POSITION = -10000;  //TEST POSITION
     final static int ARM_ANGLE_TRAVEL_POSITION = -5600;
@@ -293,21 +343,21 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
 
     public void initializeManipMotors(){
         //Initialize motors for manipulator
-        armAngleMotor = hardwareMap.get(DcMotor.class, "armAngleMotor");
-        armAngleMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        armAngleMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        armAngleMotor.setDirection(DcMotor.Direction.REVERSE);
+        lifter = hardwareMap.get(DcMotor.class, "lifter");
+        lifter.setDirection(DcMotor.Direction.REVERSE);
+        lifter.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
 
-        armExtensionMotor = hardwareMap.get(DcMotor.class, "armExtensionMotor");
-        armExtensionMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        armExtensionMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        foundationRake = hardwareMap.get(Servo.class, "foundationRake");
+        rotate1ClawServo = hardwareMap.get(Servo.class, "rotate1Claw");
+        rotate2ClawServo = hardwareMap.get(Servo.class, "rotate2Claw");
+        extendArm = hardwareMap.get(CRServo.class, "extendArm");
+        claw = hardwareMap.get(Servo.class, "claw");
 
-        collectMotor = hardwareMap.get(DcMotor.class, "collectMotor");
-
-        latchMotor = hardwareMap.get(DcMotor.class, "latchMotor");
-        latchMotor.setDirection(DcMotor.Direction.REVERSE);
-        latchMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        latchMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        foundationRakePosition = foundationRake.getPosition();
+        rotate1ClawPosition = rotate1ClawServo.getPosition();
+        rotate2ClawPosition = rotate2ClawServo.getPosition();
+        clawPosition = claw.getPosition();
+        lifterPosition = lifter.getCurrentPosition();
 
     }
 
@@ -1972,11 +2022,13 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
     public enum Alliance{
         RED
         , BLUE
+        , NONE
     }
 
     public enum FieldSide{
         FOUNDATION
         , QUARRY
+        , TEST
     }
     public void setWayPoses(ArrayList<Pose> wayPoses, Alliance alliance, FieldSide fieldSide) {
         /**  This function sets the wayPoses for blue side and then applies a
@@ -1988,9 +2040,9 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
             //Blue Foundation
             wayPoses.add(new Pose(39.0, 60.0, 90.0));
             //travel in the positive Y direction to midline
-            wayPoses.add(new Pose(50.0, 34.0, 90.0));
+            wayPoses.add(new Pose(50.0, 34.0, 90.0, Pose.PostMoveActivity.LOWER_RAKE));
             //travel back 12 inches
-            wayPoses.add(new Pose(54.0, 56.0, 90.0));
+            wayPoses.add(new Pose(54.0, 56.0, 90.0, Pose.PostMoveActivity.RAISE_RAKE));
             //travel to blue foundation start point
             wayPoses.add(new Pose(22.0, 56.0, 90.0));
             //travel back 12 inches
@@ -1999,18 +2051,37 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
             wayPoses.add(new Pose(48.0, 16.0, 90.0));
             //travel to blue foundation start point
             wayPoses.add(new Pose(48.0, 40.0, 90.0));
-            //travel to blue foundation start point
-            wayPoses.add(new Pose(48.0, 0.0, 180.0));
-            //travel to blue foundation start point
-            wayPoses.add(new Pose(-48.0, 0.0, 180.0));
-        } else{
+            //move back a little
+            wayPoses.add(new Pose(48.0, 35.0, 90.0));
+            //move around foundation
+            wayPoses.add(new Pose(18.0, 35.0, 90.0));
+            //move near wall
+            wayPoses.add(new Pose(18.0, 60.0, 90.0));
+            //park in middle
+            wayPoses.add(new Pose(0.0, 60.0, 90.0));
+
+            //Park in the middle
+            //wayPoses.add(new Pose(-48.0, 0.0, 180.0));
+        } else if (fieldSide == FieldSide.QUARRY){
             wayPoses.add(new Pose(Pose.StartingPose.BLUE_QUARRY));
             //travel in the positive Y direction to midline
             wayPoses.add(new Pose(-12.0, 50.0, -90.0));
             //travel back 12 inches
             wayPoses.add(new Pose(-52.0, 50.0, -90.0));
             //travel to blue foundation start point
-            wayPoses.add(new Pose(52.0, 50.0, -90.0));
+            wayPoses.add(new Pose(-52.0, 60.0, -90.0));
+            //park in middle
+            wayPoses.add(new Pose(0.0, 60.0, -90.0));
+
+        } else {
+            //start at the origin facing X axis
+            wayPoses.add(new Pose(0.0,0.0,0.0));
+            //move forward 20 inches
+            wayPoses.add(new Pose(-20.0, 0.0, 0.0));
+            //move back to origin
+            wayPoses.add(new Pose(20.0, 0.0, 0.0));
+
+
         }
 
         //  Apply the transformation.

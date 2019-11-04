@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode;
 import android.util.Log;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.hardware.DcMotor;
 
 import java.util.ArrayList;
@@ -11,6 +12,7 @@ import java.util.List;
 import static java.lang.String.format;
 
 @Autonomous
+@Disabled
 public class OdometryAuton1_NoGyroCalls extends eBotsOpMode2019 {
 
     private Boolean useGyroForNavigation = false;

@@ -44,9 +44,6 @@ public class TrackingPose extends Pose {
         this.travelDirection = this.getHeadingError();
     }
 
-
-
-
     //***************************************************************88
     //******    GETTERS AND SETTERS
     //***************************************************************88

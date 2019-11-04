@@ -13,6 +13,7 @@ public class Pose {
     private Double y;               // In Inches, 0 at center of field, positive running towards blue side
     private Double heading;         // Degrees, 0 inline with x-axis, positive CCW when viewed from top
     //private PoseError poseError;    // Error between this pose and a target pose
+    private PostMoveActivity postMoveActivity;      //  To actuate actions in Auton
 
     //***************************************************************88
     //******    STATIC VARIABLES
@@ -51,6 +52,16 @@ public class Pose {
     }
 
     //***************************************************************88
+
+    public enum PostMoveActivity{
+        NONE,
+        LOWER_RAKE,
+        RAISE_RAKE,
+        RAISE_LIFTER,
+        CYCLE_CLAW
+    }
+
+    //***************************************************************88
     //******    CONSTRUCTORS
     //***************************************************************88
 
@@ -61,13 +72,25 @@ public class Pose {
         this.y = yInput;
         this.heading = headingInput;
         //this.poseError = new PoseError();
+        this.postMoveActivity = PostMoveActivity.NONE;
     }
+
+    public Pose (Double xInput, Double yInput, Double headingInput, PostMoveActivity postMoveActivity){
+        this.x = xInput;
+        this.y = yInput;
+        this.heading = headingInput;
+        this.postMoveActivity = postMoveActivity;
+        //this.poseError = new PoseError();
+    }
+
 
     //  When using a pre-defined StartingPose from the enumeration
     public Pose(StartingPose startingPose) {
         this.x = startingPose.getxStart();
         this.y = startingPose.getyStart();
         this.heading = startingPose.getHeadingStart();
+        this.postMoveActivity = PostMoveActivity.NONE;
+
     }
 
 
@@ -94,6 +117,10 @@ public class Pose {
     public Double getHeadingRad(){
         return Math.toRadians(heading);
     }
+    public PostMoveActivity getPostMoveActivity(){
+        return this.postMoveActivity;
+    }
+
 
     public void setHeading(Double heading) {
         /** Sets heading, but makes sure it is within the legal bounds

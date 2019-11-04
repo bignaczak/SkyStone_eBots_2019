@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.Servo;
 
@@ -9,46 +10,15 @@ import java.util.ArrayList;
 @TeleOp
 public class Competition2019 extends eBotsOpMode2019 {
 
-    //------CONSTANTS FOR SERVO POSITIONS
-    private final Double RAKE_DOWN = 0.82;
-    private final Double RAKE_UP = 0.25;
-
-    private final Double CLAW_OPEN = 0.390;
-    private final Double CLAW_CLOSED = 0.18;
-
-    private final Double ROTATE1_CLAW_FORWARD = 0.846;
-    private final Double ROTATE1_CLAW_90 = 0.319;
-    private final Double ROTATE_CLAW_PACK = 0.015;
-
-
-    private final Double ROTATE2_CLAW_FORWARD = 0.798;
-    private final Double ROTATE2_CLAW_90RIGHT = 0.289;
-
-
-    //---------------------------------------------
-
-    private double foundationRakePosition;
-    private double rotate1ClawPosition;
-    private double rotate2ClawPosition;
-    private double clawPosition;
-
-    private double timerLimit = 100;  //ms
-    private double clawTimerLimit = 250;  //ms
-
-    private double rakeIncrement = 0.015;
-    private double clawIncrement = 0.01;
-    private double rotate1ClawIncrement = 0.015;
-    private double rotate2ClawIncrement = 0.015;
-
-    private Boolean clawOpen = true;
-
 
 
     @Override
     public void runOpMode(){
 
+    //***************************************************************
+    //Initialize the drive motors
+    //***************************************************************
     ArrayList<DcMotor> motorList= new ArrayList<>();
-
     if (motorList.size()>1) motorList.clear();  //Make sure there aren't any items in the list
     initializeDriveMotors(motorList, true);
 
@@ -70,7 +40,7 @@ public class Competition2019 extends eBotsOpMode2019 {
     //This are used to refine the input for driver control
     double fineAdjust;                          //Used for super-slow mode
     final double fineAdjustThreshold = 0.3;    //Avoid trivial amounts of speed reduction with threshold value
-    final double fineAdjustMaxReduction = 0.85; //Don't allow drive to be fully negated
+    final double fineAdjustMaxReduction = 0.75; //Don't allow drive to be fully negated
     boolean fineAdjustOn = false;               //Flag if fine adjust is activated
     boolean speedBoostOn = false;               //Maximize motor drive speeds if pressed
     final double motorThreshold=0.10;
@@ -80,23 +50,14 @@ public class Competition2019 extends eBotsOpMode2019 {
     double[] driveValues = new double[4];  //Array of values for the motor power levels
     double maxValue;                        //Identify ax value in driveValues array
 
-        //***************************************************************
-        //Initialize Manipulator Arm variables
-        //***************************************************************
-    Servo foundationRake;
-    Servo rotate1ClawServo;
-    Servo rotate2ClawServo;
-    Servo claw;
+    //***************************************************************
+    //Initialize Manipulator Arm variables
+    //***************************************************************
+    //Lifter is initialized in eBots abstract OpMode
+    initializeManipMotors();
 
-    foundationRake = hardwareMap.get(Servo.class, "foundationRake");
-    rotate1ClawServo = hardwareMap.get(Servo.class, "rotate1Claw");
-    rotate2ClawServo = hardwareMap.get(Servo.class, "rotate2Claw");
-    claw = hardwareMap.get(Servo.class, "claw");
 
-    foundationRakePosition = foundationRake.getPosition();
-    rotate1ClawPosition = rotate1ClawServo.getPosition();
-    rotate2ClawPosition = rotate2ClawServo.getPosition();
-    clawPosition = claw.getPosition();
+
 
     //***************************************************************
     //Initialize the variables that are being used in the main loop
@@ -105,10 +66,12 @@ public class Competition2019 extends eBotsOpMode2019 {
     StopWatch rotate1ClawTimer = new StopWatch();
     StopWatch rotate2ClawTimer = new StopWatch();
     StopWatch clawTimer = new StopWatch();
+    StopWatch lifterTimer = new StopWatch();
     Boolean rakeBusy = false;
     Boolean rotate1ClawBusy = false;
     Boolean rotate2ClawBusy = false;
     Boolean clawBusy = false;
+    Boolean lifterBusy = false;
 
 
     //***************************************************************
@@ -182,10 +145,18 @@ public class Competition2019 extends eBotsOpMode2019 {
 
         //GAMEPAD2 INPUTS
         //----------------------------------------
-        //Y - raise foundation rake
-        //A - lower foundation rake
-        //X - claw close
-        //B - claw open
+        //Y - raise foundation rake (has override)
+        //A - lower foundation rake (has override)
+        //X - rotate2Claw clockwise (2nd Joint) (has override)
+        //B - rotate2Claw counterClockwise (2nd Jont) (has override)
+        //dpad_Right - rotateClaw clockwise (1st Joint) (has override)
+        //dpad_Left - rotateClaw counterclockwise(1st Joint) (has override)
+        //dpad_Up - extend Arm
+        //dpad_Down - retract Arm
+        //right Bumper - toggle claw position (and close on override)
+        //right Trigger - (open claw on override)
+        //left Stick - lifter up and down
+
 
         //----------RAKE INPUTS----------------
         if (!rakeBusy && gamepad2.y && !gamepad2.left_bumper){
@@ -298,6 +269,41 @@ public class Competition2019 extends eBotsOpMode2019 {
             //claw.setPosition(0.5);
         }
 
+        //----------EXTEND ARM INPUTS----------------
+        if (gamepad2.dpad_up) {
+            extendArm.setPower(0.3);
+        } else if(gamepad2.dpad_down) {
+            extendArm.setPower(-0.3);
+        } else {
+            extendArm.setPower(0.0);
+        }
+
+        //----------Lifter INPUTS----------------
+
+        liftPower = gamepad2.left_stick_y;
+        if (liftPower>0.3 && !lifterBusy){
+            //This is for going down
+            lifterTimer.startTimer();
+            lifterBusy = true;
+            lifterPosition += lifterIncrement;
+            if (lifterPosition>0) lifterPosition = 0;
+            lifter.setTargetPosition(lifterPosition);
+            lifter.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+            lifter.setPower(0.2);
+        } else if (liftPower < -0.3 && !lifterBusy){
+            //This is for going up
+            lifterTimer.startTimer();
+            lifterBusy = true;
+            lifterPosition -= lifterIncrement;
+            lifter.setTargetPosition(lifterPosition);
+            lifter.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+            lifter.setPower(0.2);
+        } else if (lifterTimer.getElapsedTimeMillis() > lifterTimerLimit) {
+            lifterBusy = false;
+        }
+        //lifter.setPower(liftPower);
+
+
         writeTelemetry(foundationRake,  rotate1ClawServo, rotate2ClawServo, claw);
 
     }
@@ -306,6 +312,10 @@ public class Competition2019 extends eBotsOpMode2019 {
 }
 
     private void writeTelemetry(Servo foundationRake, Servo rotate1ClawServo, Servo rotate2ClawServo, Servo claw){
+        telemetry.addData("Lift Power:", lifter.getPower());
+        telemetry.addData("Lift Target:", lifterPosition);
+        telemetry.addData("Lift Motor Power:", lifter.getCurrentPosition());
+        telemetry.addData("Lift Motor Target:", lifter.getTargetPosition());
         telemetry.addData("Rake Position: ", foundationRake.getPosition());
         telemetry.addData("Rotate1 Claw Position:", rotate1ClawServo.getPosition());
         telemetry.addData("Rotate2 Claw Position:", rotate2ClawServo.getPosition());

@@ -1,9 +1,11 @@
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.Servo;
 
 @TeleOp
+@Disabled
 public class SampleTeleOpMode_Manip extends eBotsOpMode2019 {
 
     //------CONSTANTS FOR SERVO POSITIONS

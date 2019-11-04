@@ -1,11 +1,13 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.hardware.DcMotor;
 
 import java.util.ArrayList;
 
 @Autonomous
+@Disabled
 public class TimeBasedAutron extends eBotsOpMode2019 {
     private boolean skipMotorInit=false;
     //For encoder capture, drive encoders are zeroed after each drive step
