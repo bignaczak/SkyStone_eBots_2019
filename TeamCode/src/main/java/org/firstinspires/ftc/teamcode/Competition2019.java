@@ -286,7 +286,7 @@ public class Competition2019 extends eBotsOpMode2019 {
             lifterTimer.startTimer();
             lifterBusy = true;
             lifterPosition += lifterIncrement;
-            if (lifterPosition>0) lifterPosition = 0;
+            if (lifterPosition>800) lifterPosition = 800;
             lifter.setTargetPosition(lifterPosition);
             lifter.setMode(DcMotor.RunMode.RUN_TO_POSITION);
             lifter.setPower(0.2);

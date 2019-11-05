@@ -2075,11 +2075,13 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
 
         } else {
             //start at the origin facing X axis
-            wayPoses.add(new Pose(0.0,0.0,0.0));
+            wayPoses.add(new Pose(0.0,0.0,90.0));
             //move forward 20 inches
-            wayPoses.add(new Pose(-20.0, 0.0, 0.0));
+            wayPoses.add(new Pose(0.0, -5.0, 90.0));
             //move back to origin
-            wayPoses.add(new Pose(20.0, 0.0, 0.0));
+            wayPoses.add(new Pose(0.0, -10.0, 90.0));
+            //move back to origin
+            wayPoses.add(new Pose(0.0, -15.0, 90.0));
 
 
         }
