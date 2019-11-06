@@ -6,7 +6,6 @@ import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.hardware.DcMotor;
 
 import java.util.ArrayList;
-import java.util.Set;
 
 import static java.lang.String.format;
 
@@ -23,7 +22,6 @@ public class Auton_Blue_Foundation_W1 extends eBotsAuton2019 {
     private GyroSetting gyroConfig = GyroSetting.EVERY_LOOP;
     private SoftStart softStartConfig = SoftStart.MEDIUM;
     private Accuracy accuracyConfig = Accuracy.STANDARD;
-
 
     /****************************************************************/
 
@@ -67,10 +65,11 @@ public class Auton_Blue_Foundation_W1 extends eBotsAuton2019 {
         //This is called only once to document offset of gyro from field coordinate system
 
         if (useGyroForNavigation) {
-            currentPose.setInitialGyroOffset(getCurrentHeading());  //This is called only once to document offset of gyro from field coordinate system
+            currentPose.setInitialGyroOffset(getGyroReadingDegrees());  //This is called only once to document offset of gyro from field coordinate system
         } else {
             currentPose.setInitialGyroOffset(0.0);
         }
+        Double initialGyroOffset = currentPose.getInitialGyroOffset();
 
 
         String loopMetrics = "Loop Initialized";
@@ -91,29 +90,40 @@ public class Auton_Blue_Foundation_W1 extends eBotsAuton2019 {
         //***************************************************************
 
         TrackingPose endPose = travelToNextPose(currentPose, motorList);
-        Double previousInitialGyroOffset = currentPose.getInitialGyroOffset();
-        if(!simulateMotors) stopMotors(motorList);
         wayPoseIndex++;
 
         Double currentPoseHeadingError;
         while(wayPoseIndex< wayPoses.size()) {
 
+            //Perform actions specified in the targetPose of the path leg that was just completed
             executePostMoveActivity(currentPose);
+            //Correct heading angle if not within tolerance limits set in accuracyConfig
             correctHeading(currentPose, motorList);
-            //Correct heading angle if not good enough
 
             //Set ending of previous leg as the starting pose for new leg
+            //  Position and pose are taken from the TrackingPose object returned by travelToNextPose
             Pose startPose = new Pose(endPose.getX(), endPose.getY(), endPose.getHeading());
             currentPose = new TrackingPose(startPose, wayPoses.get(wayPoseIndex));
-            setInitialOffsetForTrackingPose(imu, currentPose, previousInitialGyroOffset);
+
+            //Must set the initialGryOffset
+            //This routine first sets the heading and then sets the initialGyroOffset
+            //This is likely redundant and can be replaced with just a call to setInitialGyroOffset
+            //Todo: Verify that copying the initialGyroOffset works and delete setInitialOffset...
+            currentPose.copyInitialGyroOffsetBetweenLegs(initialGyroOffset);
+            //setInitialOffsetForTrackingPose(imu, currentPose, initialGyroOffset);
 
             Log.d("BTI_runOpMode", "~~~~~~~~~~~~~Starting Leg " + wayPoseIndex.toString());
             endPose = travelToNextPose(currentPose, motorList);
-            if(!simulateMotors) stopMotors(motorList);
+
             wayPoseIndex++;
         }
+
         correctHeading(currentPose, motorList);
 
+        //  Verify all drive motors are stopped
+        if(!simulateMotors) stopMotors(motorList);
+
+        //  Hold telemetry for a few seconds
         StopWatch timer = new StopWatch();
         timer.startTimer();
         loopMetrics = "All Points Completed";
@@ -121,7 +131,6 @@ public class Auton_Blue_Foundation_W1 extends eBotsAuton2019 {
         while (opModeIsActive() && timer.getElapsedTimeSeconds() < 5){
             writeOdometryTelemetry(loopMetrics, currentPose, forwardTracker, lateralTracker);
         }
-        //*************************************************8
 
     }
 

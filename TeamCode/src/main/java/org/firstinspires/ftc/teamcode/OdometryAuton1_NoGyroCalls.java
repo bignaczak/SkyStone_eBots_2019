@@ -7,7 +7,6 @@ import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.hardware.DcMotor;
 
 import java.util.ArrayList;
-import java.util.List;
 
 import static java.lang.String.format;
 
@@ -90,7 +89,7 @@ public class OdometryAuton1_NoGyroCalls extends eBotsOpMode2019 {
 
         //This is called only once to document offset of gyro from field coordinate system
         if(useGyroForNavigation) {
-            currentPose.setInitialGyroOffset(getCurrentHeading());
+            currentPose.setInitialGyroOffset(getGyroReadingDegrees());
         } else {
             currentPose.setInitialGyroOffset(0.0);
         }
@@ -131,7 +130,7 @@ public class OdometryAuton1_NoGyroCalls extends eBotsOpMode2019 {
                 EncoderTracker.getNewPose(currentPose);               //update position if not first loop
 
                 if (useGyroForNavigation && (loopCount % gyroCallFrequency == 0)) {
-                    currentPose.setHeadingFromGyro(getCurrentHeading());  //Update heading with robot orientation
+                    currentPose.setHeadingFromGyro(getGyroReadingDegrees());  //Update heading with robot orientation
                 }
                 currentPose.calculatePoseError();                     //Update error object
 

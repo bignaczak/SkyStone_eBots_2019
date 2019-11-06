@@ -96,7 +96,7 @@ public class Auton_Blue_Foundation_V2 extends eBotsOpMode2019 {
 
         if (useGyroForNavigation) {
             initializeImu();
-            currentPose.setInitialGyroOffset(getCurrentHeading());  //This is called only once to document offset of gyro from field coordinate system
+            currentPose.setInitialGyroOffset(getGyroReadingDegrees());  //This is called only once to document offset of gyro from field coordinate system
         } else {
             currentPose.setInitialGyroOffset(0.0);
         }
@@ -236,7 +236,7 @@ public class Auton_Blue_Foundation_V2 extends eBotsOpMode2019 {
                 EncoderTracker.getNewPose(currentPose);               //update position if not first loop
 
                 if (useGyroForNavigation && (loopCount % gyroCallFrequency == 0)) {
-                    currentPose.setHeadingFromGyro(getCurrentHeading());  //Update heading with robot orientation
+                    currentPose.setHeadingFromGyro(getGyroReadingDegrees());  //Update heading with robot orientation
                 }
                 currentPose.calculatePoseError();                     //Update error object
 
@@ -325,7 +325,7 @@ public class Auton_Blue_Foundation_V2 extends eBotsOpMode2019 {
         //If using heading, update the heading using the gyro reading
         Double gyroReading;
         if (useGyroForNavigation) {
-            gyroReading = getCurrentHeading();
+            gyroReading = getGyroReadingDegrees();
             trackingPose.setHeadingFromGyro(gyroReading, previousInitialGyroOffset);
         } else{
             gyroReading = trackingPose.getHeading() + previousInitialGyroOffset;

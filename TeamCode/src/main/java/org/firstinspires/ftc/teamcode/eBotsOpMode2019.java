@@ -5,16 +5,13 @@ import android.util.Log;
 
 import com.qualcomm.hardware.bosch.BNO055IMU;
 import com.qualcomm.hardware.bosch.JustLoggingAccelerationIntegrator;
-import com.qualcomm.hardware.rev.RevBlinkinLedDriver;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.hardware.rev.RevBlinkinLedDriver;
 import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.robotcore.external.ClassFactory;
 import org.firstinspires.ftc.robotcore.external.Func;
-import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.navigation.Acceleration;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.AxesOrder;
@@ -24,7 +21,6 @@ import org.firstinspires.ftc.robotcore.external.navigation.VuforiaLocalizer;
 import org.firstinspires.ftc.robotcore.external.navigation.VuforiaLocalizer.CameraDirection;
 import org.firstinspires.ftc.robotcore.external.tfod.Recognition;
 import org.firstinspires.ftc.robotcore.external.tfod.TFObjectDetector;
-import org.firstinspires.ftc.robotcore.internal.system.Deadline;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -62,9 +58,6 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
     protected Servo rotate2ClawServo;
     protected CRServo extendArm;
     protected Servo claw;
-
-
-
 
 
 
@@ -108,6 +101,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
     protected double rotate2ClawPosition;
     protected double clawPosition;
     protected Integer lifterPosition;
+    protected Integer lifterMaxPosition = -5000;
 
     protected double timerLimit = 100;  //ms
     protected double clawTimerLimit = 250;  //ms
@@ -118,7 +112,8 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
     protected Integer lifterIncrement = 400;
     protected double rotate1ClawIncrement = 0.015;
     protected double rotate2ClawIncrement = 0.015;
-    protected double liftPower = 0.0;
+    protected double lifterUserInput = 0.0;
+    protected double lifterPowerLevel = 0.2;
 
     protected Boolean clawOpen = true;
 
@@ -332,18 +327,23 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         rotate1ClawPosition = rotate1ClawServo.getPosition();
         rotate2ClawPosition = rotate2ClawServo.getPosition();
         clawPosition = claw.getPosition();
+
         lifterPosition = lifter.getCurrentPosition();
+        lifter.setTargetPosition(lifterPosition);
+        lifter.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        lifter.setPower(lifterPowerLevel);
+
 
     }
 
-    public double getCurrentHeading(){
+    public double getGyroReadingDegrees(){
         angles   = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
         currentHeading = angles.firstAngle;
         currentRollDegrees = angles.secondAngle;
         return currentHeading;
     }
 
-    public double getRadHeading(){
+    public double getGyroReadingRad(){
         radAngles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.RADIANS);
         radHeading=radAngles.firstAngle;
         return radHeading;
@@ -479,7 +479,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         //All angles in this routine are in DEGREES
         boolean currentHeadingModifier = false;  //Used as a flag if the target angle passes the 180 point
         double overFlowAngle = 0;
-        double adjustedAngle = getCurrentHeading();  //Adjusted angle is to handle crossover of sign at 180 degrees
+        double adjustedAngle = getGyroReadingDegrees();  //Adjusted angle is to handle crossover of sign at 180 degrees
         double angleBufferForPrecision = 35;
         double fullSpeed = 0.5;
         double throttleDownSpeed = 0.2;
@@ -538,7 +538,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
                 //  Just keep spinning to the right
 
                 //Get the new adjusted angle
-                getCurrentHeading();
+                getGyroReadingDegrees();
                 if ((spinAngleInDegrees>0 && targetAngle > currentHeading) |//Spinning to the right, so angle count is decreasing AND target angle > currentHeading(adjustedAngle)
                         (spinAngleInDegrees<0 && targetAngle < currentHeading)){
                     adjustedAngle= (360- Math.abs(currentHeading))* Math.signum(targetAngle);
@@ -568,9 +568,9 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
                 //  Just keep spinning to the left
 
                 //Get the new adjusted angle
-                getCurrentHeading();
+                getGyroReadingDegrees();
                 //Get the new adjusted angle
-                getCurrentHeading();
+                getGyroReadingDegrees();
                 if ((spinAngleInDegrees>0 && targetAngle > currentHeading) |//Spinning to the right, so angle count is decreasing AND target angle > currentHeading(adjustedAngle)
                         (spinAngleInDegrees<0 && targetAngle < currentHeading)){
                     adjustedAngle= (360- Math.abs(currentHeading))* Math.signum(targetAngle);
@@ -686,7 +686,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         //so the if target is 0 and heading is -pi/2, the return is -pi/2
         Double trackingPoseHeadingRad = trackingPose.getHeadingRad();
         Double trackingPoseTargetheadingRad = trackingPose.getTargetPose().getHeadingRad();
-        getCurrentHeading();
+        getGyroReadingDegrees();
 
         //NOTE:  angleErrorFieldOriented is calculated based on the field-oriented sign, CCW is positive
         double angleErrorFieldOriented = Math.toDegrees(trackingPoseTargetheadingRad - trackingPoseHeadingRad);
@@ -703,7 +703,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         //The sign of the return angle, when considering gyro-oriented vectors (CCW is positive)
         //uses the target as the basis and error value orients to the current heading
         //so the if target is 0 and heading is -pi/2, the return is -pi/2
-        getCurrentHeading();
+        getGyroReadingDegrees();
         double headingError = Math.toRadians(currentHeading)-targetHeadingInRadians;
         //If large error, assume that crossover has occurred
         if (Math.abs(headingError)> Math.toRadians(180)){
@@ -719,7 +719,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         int[] currentMotorPositions = new int[4];
         double maxSlowDownFactor = 0.5;
         long transientFence = 500;  //accelerate and decelerate within this time window
-        getRadHeading();
+        getGyroReadingRad();
         double maxScale = 0.9;   //was 0.65
         if(driveTime<1) maxScale=0.55;  //If a delicate maneuveur, go slow
         double driveScaleFactor=1;
@@ -754,9 +754,9 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
             remainingTime= endTime-currentTime;
             transientComparison = (elapsedTime < remainingTime) ? elapsedTime : remainingTime;
 
-            getRadHeading();
+            getGyroReadingRad();
             getMotorPositions(currentMotorPositions, motors);
-            getCurrentHeading();
+            getGyroReadingDegrees();
             if(stopOnRollLimit && Math.abs(currentRollDegrees)>rollLimitValue){
                 rollLimitReached = true;
             }
@@ -779,7 +779,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         int[] currentMotorPositions = new int[4];
         double maxSlowDownFactor = 0.5;
         long transientFence = 500;  //accelerate and decelerate within this time window
-        getRadHeading();
+        getGyroReadingRad();
         double maxScale = 0.9;   //was 0.65
         if(driveTime<1) maxScale=0.65;  //If a delicate maneuveur, go slow
         double driveScaleFactor=1;
@@ -812,7 +812,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
             remainingTime= endTime-currentTime;
             transientComparison = (elapsedTime < remainingTime) ? elapsedTime : remainingTime;
 
-            getRadHeading();
+            getGyroReadingRad();
             getMotorPositions(currentMotorPositions, motors);
             telemetry.addData("drivePower", drivePower);
             telemetry.addData("driveTime", driveTime);
@@ -891,7 +891,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         //Set the target heading.  Note that rotationAngleGyroOriented is positive if to left (same as gyro)
         //That is why rotationAngleGyroOriented is added to currentHeading
         //Also note that the target heading can have abs value greater than 180, which may be a problem later
-        getCurrentHeading();  //Refreshes the currentHeading class attribute
+        getGyroReadingDegrees();  //Refreshes the currentHeading class attribute
         double targetHeading = Math.toRadians(currentHeading)+rotationAngleGyroOriented;
 
         //TODO:  Can this be replaced with checkHeadingVersusTarget?
@@ -1007,7 +1007,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
                 telemetry.addData("Spin Power", spinPower);
                 telemetry.addData("drivePower", drivePower);
                 telemetry.addData("Heading", currentHeading);
-                telemetry.addData("radHeading", getRadHeading());
+                telemetry.addData("radHeading", getGyroReadingRad());
                 telemetry.addData("driveAngle", driveAngle);
                 telemetry.addData("driveValues", Arrays.toString(driveValues));
                 telemetry.addData("spinDistance", "%.2f", requiredSpinDistance);
@@ -1041,7 +1041,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         //return true;
     }
     public void performDriveStepRunToPosition(ArrayList<DcMotor> motors, double driveAngle, double spinPower, double drivePower, double[] driveValues, int[] encoderTargetValues) {
-        getCurrentHeading();
+        getGyroReadingDegrees();
         calculateFieldOrientedDriveVector(driveAngle, Math.toRadians(currentHeading), drivePower, spinPower, driveValues);
         for(int i=0; i<motors.size(); i++) {
             motors.get(i).setMode(DcMotor.RunMode.RUN_TO_POSITION);
@@ -1054,8 +1054,8 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
                 (motors.get(0).isBusy() | motors.get(1).isBusy()
                         | motors.get(2).isBusy() | motors.get(3).isBusy())){
 
-            getCurrentHeading();
-            getRadHeading();
+            getGyroReadingDegrees();
+            getGyroReadingRad();
             getMotorPositions(currentMotorPositions, motors);
 
             telemetry.addData("heading", currentHeading);
@@ -1074,64 +1074,6 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
             currentPositions[i] = motors.get(i).getCurrentPosition();
         }
     }
-
-    public void lowerLatchToDrivePosition(){
-        latchMotor.setTargetPosition(LATCH_DRIVE_POSITION);
-        //latchMotor.setTargetPosition(0);
-        latchMotor.setTargetPosition(LATCH_DEPLOY_POSITION);
-        latchMotor.setPower(1);
-    }
-
-    public void moveArmToDumpPosition(){
-
-        armAngleMotor.setTargetPosition(ARM_ANGLE_DUMP_POSITION);
-        armAngleMotor.setPower(1);
-
-    }
-    public void extendArmToClaim(){
-        armExtensionMotor.setTargetPosition(ARM_EXTENSION_DUMP_POSITION);
-        armExtensionMotor.setPower(1);
-    }
-
-
-    public void extendArm(){
-        armExtensionMotor.setTargetPosition(ARM_EXTENSION_COLLECTION_POSITION);
-        armExtensionMotor.setPower(1);
-    }
-
-    public void waitForArmsToMove(){
-        while(opModeIsActive()
-                && (armExtensionMotor.isBusy()
-                | armAngleMotor.isBusy()
-                | latchMotor.isBusy())){
-            //Just wait
-        }
-    }
-
-    public void depositMarkerInDepot(ArrayList<DcMotor> motors){
-        long endTimer = System.nanoTime()/1000000 + 5000;//Set timer for 5 seconds
-
-        while(opModeIsActive()
-                && armAngleMotor.isBusy()
-                && System.nanoTime()/1000000<endTimer){
-            //Wait for the marker to be placed
-            //We could add a touch sensor here to improve timing
-            telemetry.update();
-        }
-        armAngleMotor.setPower(0);
-        //  b) Spit out the marker
-        collectMotor.setPower(-1);
-        long delayTime = 800;
-        performDriveStep(0, 0, 0, delayTime, motors);  //delay for a second
-        collectMotor.setPower(0);       //turn off the motor
-    }
-
-    public void moveArmtoTravelPosition(){
-        armAngleMotor.setTargetPosition(ARM_ANGLE_TRAVEL_POSITION);
-        armAngleMotor.setPower(1);
-
-    }
-
 
     public GoldPosition landAndLocateGoldMineral(){
         if (tfod != null) {
@@ -1769,7 +1711,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
                 }
 
                 //Calculate new drive vector and set motor power
-                getCurrentHeading();
+                getGyroReadingDegrees();
                 calculateFieldOrientedDriveVector(driveAngle, Math.toRadians(currentHeading), drivePower, spinPower*spinBoostFactor, driveValues);
                 maxValue = findMaxAbsValue(driveValues);
 

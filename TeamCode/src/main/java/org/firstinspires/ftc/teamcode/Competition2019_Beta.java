@@ -7,8 +7,13 @@ import com.qualcomm.robotcore.hardware.Servo;
 import java.util.ArrayList;
 
 @TeleOp
-public class Competition2019 extends eBotsOpMode2019 {
+public class Competition2019_Beta extends eBotsOpMode2019 {
 
+    /** Change the lifter power behavior offset from current position
+     *    It gets rid of the timer and only applies increment to current position
+     *    Also, it locks current position when releasing stick
+     *    Speed of lifter can be adjusted with leftBumper && right_stick_y
+     */
 
 
     @Override
@@ -20,8 +25,6 @@ public class Competition2019 extends eBotsOpMode2019 {
     ArrayList<DcMotor> motorList= new ArrayList<>();
     if (motorList.size()>1) motorList.clear();  //Make sure there aren't any items in the list
     initializeDriveMotors(motorList, true);
-
-
 
     //***************************************************************
     //Initialize the variables that are being used in the main loop
@@ -279,28 +282,37 @@ public class Competition2019 extends eBotsOpMode2019 {
 
         //----------Lifter INPUTS----------------
 
-        lifterUserInput = gamepad2.left_stick_y;
-        if (lifterUserInput >0.3 && !lifterBusy){
+        lifterUserInput = -gamepad2.left_stick_y;
+
+        if (lifterUserInput <0.3){
             //This is for going down
-            lifterTimer.startTimer();
-            lifterBusy = true;
-            lifterPosition += lifterIncrement;
-            if (lifterPosition>800) lifterPosition = 800;
-            lifter.setTargetPosition(lifterPosition);
-            lifter.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-            lifter.setPower(0.2);
-        } else if (lifterUserInput < -0.3 && !lifterBusy){
+            lifterPosition = lifter.getCurrentPosition() + lifterIncrement;
+            if (lifterPosition>0) lifterPosition = 0;
+        } else if (lifterUserInput > -0.3){
             //This is for going up
-            lifterTimer.startTimer();
+            lifterPosition = lifter.getCurrentPosition() - lifterIncrement;
+            if (lifterPosition < lifterMaxPosition) lifterPosition = lifterMaxPosition;
+        } else if (Math.abs(lifterUserInput) <= 0.3) {
+            lifterPosition = lifter.getCurrentPosition();
+        }
+        lifter.setTargetPosition(lifterPosition);
+
+        //----------Adjust lifter speed----------------
+        if (!lifterBusy && gamepad2.left_bumper && gamepad2.right_stick_y < 0.3){
+            lifterPowerLevel += 0.05;
+            if(lifterPowerLevel>1.0) lifterPowerLevel = 1.0;
+            lifter.setPower(lifterPowerLevel);
             lifterBusy = true;
-            lifterPosition -= lifterIncrement;
-            lifter.setTargetPosition(lifterPosition);
-            lifter.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-            lifter.setPower(0.2);
-        } else if (lifterTimer.getElapsedTimeMillis() > lifterTimerLimit) {
+            lifterTimer.startTimer();
+        } else if (!lifterBusy && gamepad2.left_bumper && gamepad2.right_stick_y>0.3) {
+            lifterPowerLevel -= 0.05;
+            if(lifterPowerLevel<0.0) lifterPowerLevel = 0.0;
+            lifter.setPower(lifterPowerLevel);
+            lifterBusy = true;
+            lifterTimer.startTimer();
+        } else if (lifterBusy && lifterTimer.getElapsedTimeMillis()>lifterTimerLimit){
             lifterBusy = false;
         }
-        //lifter.setPower(lifterUserInput);
 
 
         writeTelemetry(foundationRake,  rotate1ClawServo, rotate2ClawServo, claw);
@@ -311,9 +323,9 @@ public class Competition2019 extends eBotsOpMode2019 {
 }
 
     private void writeTelemetry(Servo foundationRake, Servo rotate1ClawServo, Servo rotate2ClawServo, Servo claw){
-        telemetry.addData("Lift Power:", lifter.getPower());
+        telemetry.addData("Lift Power Limit:", lifterPowerLevel);
         telemetry.addData("Lift Target:", lifterPosition);
-        telemetry.addData("Lift Motor Power:", lifter.getCurrentPosition());
+        telemetry.addData("Lift Motor Position:", lifter.getCurrentPosition());
         telemetry.addData("Lift Motor Target:", lifter.getTargetPosition());
         telemetry.addData("Rake Position: ", foundationRake.getPosition());
         telemetry.addData("Rotate1 Claw Position:", rotate1ClawServo.getPosition());

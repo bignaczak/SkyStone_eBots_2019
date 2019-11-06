@@ -65,7 +65,7 @@ public class OdometryAuton1 extends eBotsOpMode2019 {
         TrackingPose currentPose = new TrackingPose(startingPose, targetPose);
 
         //This is called only once to document offset of gyro from field coordinate system
-        currentPose.setInitialGyroOffset(getCurrentHeading());
+        currentPose.setInitialGyroOffset(getGyroReadingDegrees());
 
         StopWatch stopWatch = new StopWatch();
         String loopMetrics = stopWatch.toString(loopCount);
@@ -87,7 +87,7 @@ public class OdometryAuton1 extends eBotsOpMode2019 {
                 EncoderTracker.getNewPose(currentPose);               //update position if not first loop
 
                 if (useGyroForNavigation) {
-                    currentPose.setHeadingFromGyro(getCurrentHeading());  //Update heading with robot orientation
+                    currentPose.setHeadingFromGyro(getGyroReadingDegrees());  //Update heading with robot orientation
                 }
                 currentPose.calculatePoseError();                     //Update error object
 

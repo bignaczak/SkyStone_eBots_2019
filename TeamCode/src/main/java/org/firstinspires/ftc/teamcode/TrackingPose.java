@@ -3,9 +3,11 @@ package org.firstinspires.ftc.teamcode;
 import static java.lang.String.format;
 
 public class TrackingPose extends Pose {
-    //  This is used for a dynamic pose that is used to track the robots position
-    //  This is unique because it also has an error object attached to it
-    //  That tracks progress towards the target pose
+    /**  This is used for a dynamic pose that is used to track the robots position
+        This is unique because it also has an error object attached to it
+        That tracks progress towards the target pose
+        Each instance of a trackingPose represents one leg of an auton path
+     */
 
     //***************************************************************88
     //******    CLASS VARIABLES
@@ -63,6 +65,13 @@ public class TrackingPose extends Pose {
         //  This captures the rotation required to bring the field coordinates frame in line with the
         //  the robot coordinate system
         initialGyroOffset = this.getHeading() - gyroReading;
+    }
+
+    public void copyInitialGyroOffsetBetweenLegs(Double previousInitialGyroOffset){
+        /**  This is intended to copy the initialGyro offset from the TrackingPose used
+         *   in the first leg to each successive TrackingPose of the auton path
+         */
+        this.initialGyroOffset = previousInitialGyroOffset;
     }
 
 

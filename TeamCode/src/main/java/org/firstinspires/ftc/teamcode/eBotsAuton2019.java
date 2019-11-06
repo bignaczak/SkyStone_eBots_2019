@@ -341,7 +341,7 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
                 EncoderTracker.getNewPose(currentPose);               //update position if not first loop
 
                 if (useGyroForNavigation && (loopCount % gyroCallFrequency == 0)) {
-                    currentPose.setHeadingFromGyro(getCurrentHeading());  //Update heading with robot orientation
+                    currentPose.setHeadingFromGyro(getGyroReadingDegrees());  //Update heading with robot orientation
                 }
                 currentPose.calculatePoseError();                     //Update error object
 
@@ -422,16 +422,21 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
             writeOdometryTelemetry(loopMetrics, currentPose, forwardTracker, lateralTracker);
         }
 
+        if(!simulateMotors) stopMotors(motorList);
+
         return currentPose;
     }
 
 
 
     protected void setInitialOffsetForTrackingPose(BNO055IMU imu, TrackingPose trackingPose, Double previousInitialGyroOffset){
+        /** This can probably be eliminated
+         *
+         */
         //If using heading, update the heading using the gyro reading
         Double gyroReading;
         if (useGyroForNavigation) {
-            gyroReading = getCurrentHeading();
+            gyroReading = getGyroReadingDegrees();
             trackingPose.setHeadingFromGyro(gyroReading, previousInitialGyroOffset);
         } else{
             gyroReading = trackingPose.getHeading() + previousInitialGyroOffset;
@@ -457,7 +462,7 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
             turnToFieldHeading(currentPose, turnSpeed, motorList);
         }
         //Read new angle from gyro
-        currentPose.setHeadingFromGyro(getCurrentHeading());  //Update heading with robot orientation
+        currentPose.setHeadingFromGyro(getGyroReadingDegrees());  //Update heading with robot orientation
 
 
     }

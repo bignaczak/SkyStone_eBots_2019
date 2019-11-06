@@ -4,8 +4,6 @@ import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 
-import org.firstinspires.ftc.robotcore.external.Telemetry;
-
 import java.util.ArrayList;
 
 @TeleOp
@@ -85,7 +83,7 @@ public class SampleTeleOpMode_FieldOriented extends eBotsOpMode2019 {
         robotAngle = Math.atan2(driveX, driveY);  //  NOTE:  x AND y are reversed in this formula from other OpModes
 
         //calculateDriveVector(r, robotAngle, spin, driveValues);     //Calculate motor drive speeds
-        radHeading = getRadHeading();
+        radHeading = getGyroReadingRad();
         calculateFieldOrientedDriveVector(robotAngle, radHeading,r,spin,driveValues);
         //Now allow for fine maneuvering by allowing a slow mode when pushing trigger
         //Trigger is an analog input between 0-1, so it allows for variable adjustment of speed
