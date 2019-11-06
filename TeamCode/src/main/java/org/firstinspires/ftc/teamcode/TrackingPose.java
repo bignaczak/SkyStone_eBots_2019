@@ -154,6 +154,8 @@ public class TrackingPose extends Pose {
         if (!headingErrorLocked) travelDirection = getHeadingError();
     }
 
+
+
     public String printError(){
         return "Error: " + format("%.2f", this.getSignedError()) +
                 " @ " + format("%.2f", this.getHeadingError()) +

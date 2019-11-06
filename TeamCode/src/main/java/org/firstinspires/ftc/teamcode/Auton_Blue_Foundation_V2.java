@@ -77,7 +77,7 @@ public class Auton_Blue_Foundation_V2 extends eBotsOpMode2019 {
         Integer wayPoseIndex = 1;
         wayPoses = new ArrayList<>();
         if (wayPoses.size() > 0) wayPoses.clear();       // get rid of pre-existing poses
-        setWayPoses(wayPoses, Alliance.BLUE, FieldSide.FOUNDATION);
+        setWayPoses(wayPoses, eBotsAuton2019.Alliance.BLUE, eBotsAuton2019.FieldSide.FOUNDATION);
         //  *********  INITIALIZE FOR FIRST PASS THROUGH LOOP   *****************
         //  Create currentPose, which is the tracked position from start to target
         //  This is a special type of pose that is intended to track the path of travel

@@ -86,8 +86,8 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
     public TFObjectDetector tfod;
     public final static String VUFORIA_KEY = "AdGgXjv/////AAABmSSQR7vFmE3cjN2PqTebidhZFI8eL1qz4JblkX3JPyyYFRNp/Su1RHcHvkTzJ1YjafcDYsT0l6b/2U/fEZObIq8Si3JYDie2PfMRfdbx1+U0supMRZFrkcdize8JSaxMeOdtholJ+hUZN+C4Ovo7Eiy/1sBrqihv+NGt1bd2/fXwvlIDJFm5lJHF6FCj9f4I7FtIAB0MuhdTSu4QwYB84m3Vkx9iibTUB3L2nLLtRYcbVpoiqvlxvZomUd2JMef+Ux6+3FA3cPKCicVfP2psbjZrxywoc8iYUAq0jtsEaxgFdYoaTR+TWwNtKwJS6kwCgBWThcIQ6yI1jWEdrJYYFmHXJG/Rf/Nw8twEVh8l/Z0M";
 
+    //  2019 eBots
     //  DEFINE CONSTANTS FOR THE ROBOT
-    //  THESE ARE ALL POSITIONS ASSUMED THE ROBOT IS COMPLETELY FOLDED PRIOR TO START OF AUTON
     //------CONSTANTS FOR SERVO POSITIONS
     protected final Double RAKE_DOWN = 0.90;
     protected final Double RAKE_UP = 0.25;
@@ -124,11 +124,8 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
 
 
 
-
-    final static int ARM_ANGLE_COLLECT_POSITION = -11750;  //REAL POSITION
-    //final static int ARM_ANGLE_COLLECT_POSITION = -10000;  //TEST POSITION
+    //  2018 Constants
     final static int ARM_ANGLE_TRAVEL_POSITION = -5600;
-    final static int ARM_ANGLE_SCORE_POSITION = -1000;    //MUST VERIFY
     final static int ARM_ANGLE_DUMP_POSITION = -9500;      //was -8000, -9500 was OK, but may catch side, -11000 might be too low, can hit glass
 
     //These are constants used to define counts per revolution of NEVEREST motors with encoders
@@ -138,32 +135,10 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
 
     //final int ARM_EXTENSION_COLLECTION_POSITION = 27800;
     final static int ARM_EXTENSION_COLLECTION_POSITION = -54750; //  54946 was observed in -57500;  //test position
-    final static int ARM_EXTENSION_TRAVEL_POSITIION = -27800;
     final static int ARM_EXTENSION_DUMP_POSITION = -27600;
 
     final static int LATCH_DEPLOY_POSITION = -13800;        //-13800 is competition position, -12500 for eBots lander (shorter)
-    //13500 is a little high for our practice lander
     final static int LATCH_DRIVE_POSITION = -5900;          //5900 is good, could be a little higher
-    final static int LATCH_ENGAGE_POSITION = -11000;
-    final static int LATCH_RISEUP_POSITION = -2500;
-
-    //MOTOR PROTECTION ENCODER
-    final static int ARM_ANGLE_LIMIT = -11750;  //REAL POSITION
-    //final static int ARM_ANGLE_LIMIT = -10000;  //TEST POSITION
-    final static int ARM_EXTENSION_LIMIT = -57500;
-    final static int LATCH_LIMIT = -14000;
-
-    final static long SAMPLING_DRIVE_TIME = 1350;
-    final static long SAMPLING_EXTRA_DRIVE_TIME = 500;
-    final static double SAMPLING_DRIVE_COMPONENT = 0.85;
-    final static double SAMPLE_ALIGNMENT_TWIST_ANGLE = 30;
-    final static long CENTER_SAMPLE_CRATER_DRIVE_ALIGNMENT_TIME = 1200;
-
-    final static long DEPOT_DRIVE_TIME = 1100;
-    final static long DEPOT_EXTRA_DRIVE_TIME = 0;
-    final static double DEPOT_DRIVE_COMPONENT = .4;
-    final static long CRATER_DRIVE_TIME = 2800;  //was 2500 for first successful sample
-    final static long EXTRA_CRATER_DRIVE_TIME = 400;
 
     //****************************************************************
     //END CONSTANTS
@@ -1986,57 +1961,13 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         return outputString.toString();
     }
 
-    public String printActualMotorPowers(ArrayList<DcMotor> motorList){
-        StringBuilder outputString = new StringBuilder();
-        for(Integer i=0; i<motorList.size(); i++){
-            if(i>0) outputString.append(" | ");
-            outputString.append("Motor_" + i.toString());
-            outputString.append(" Actual Power:" + motorList.get(i).getPortNumber());
-            outputString.append(" [" + format("%.2f", motorList.get(i).getPower()) + "]");
-        }
-        return outputString.toString();
-    }
-
-    public String printMotorDriveInstructions(List<DcMotor> motorList, double[] driveValues){
-        StringBuilder outputString = new StringBuilder();
-        for(Integer i=0; i<motorList.size(); i++){
-            if(i>0) outputString.append(" | ");
-            outputString.append("Motor_" + i.toString());
-            outputString.append(" Port" + motorList.get(i).getPortNumber());
-            outputString.append(" [" + format("%.2f", driveValues[i]) + "]");
-        }
-        return outputString.toString();
-    }
-
-    public String printActualMotorPowers(List<DcMotor> motorList){
-        StringBuilder outputString = new StringBuilder();
-        for(Integer i=0; i<motorList.size(); i++){
-            if(i>0) outputString.append(" | ");
-            outputString.append("Motor_" + i.toString());
-            outputString.append(" Actual Power:" + motorList.get(i).getPortNumber());
-            outputString.append(" [" + format("%.2f", motorList.get(i).getPower()) + "]");
-        }
-        return outputString.toString();
-    }
-
-    public enum Alliance{
-        RED
-        , BLUE
-        , NONE
-    }
-
-    public enum FieldSide{
-        FOUNDATION
-        , QUARRY
-        , TEST
-    }
-    public void setWayPoses(ArrayList<Pose> wayPoses, Alliance alliance, FieldSide fieldSide) {
+    protected void setWayPoses(ArrayList<Pose> wayPoses, eBotsAuton2019.Alliance alliance, eBotsAuton2019.FieldSide fieldSide) {
         /**  This function sets the wayPoses for blue side and then applies a
          * transformation by mirroring about the X axis for position and pose
          */
 
         //These waypoints are for the blue side
-        if (fieldSide == FieldSide.FOUNDATION){
+        if (fieldSide == eBotsAuton2019.FieldSide.FOUNDATION){
             //Blue Foundation
             wayPoses.add(new Pose(39.0, 60.0, 90.0));
             //travel in the positive Y direction to midline
@@ -2062,7 +1993,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
 
             //Park in the middle
             //wayPoses.add(new Pose(-48.0, 0.0, 180.0));
-        } else if (fieldSide == FieldSide.QUARRY){
+        } else if (fieldSide == eBotsAuton2019.FieldSide.QUARRY){
             wayPoses.add(new Pose(Pose.StartingPose.BLUE_QUARRY));
             //travel in the positive Y direction to midline
             wayPoses.add(new Pose(-12.0, 50.0, -90.0));
@@ -2089,7 +2020,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         //  Apply the transformation.
         //  -->  Change sign of Y position
         //  -->  Change sign of Heading
-        if (alliance == Alliance.RED){
+        if (alliance == eBotsAuton2019.Alliance.RED){
             for (Pose p:wayPoses){
                 p.setY(-p.getY());      //Flip sign for X
                 p.setHeading(-p.getHeading());  //The called method checks heading bounds (so -180 will become 180)

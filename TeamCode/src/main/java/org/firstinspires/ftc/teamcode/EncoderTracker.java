@@ -9,12 +9,13 @@ import java.util.ArrayList;
 import static java.lang.String.format;
 
 public class EncoderTracker {
-    //  EncoderTracker records and computes the differences in encoder positions
+    /**  EncoderTracker records and computes the differences in encoder positions
     //  and translates them back into x,y (and maybe heading eventually)
+    */
 
-    //***************************************************************88
+    /***************************************************************88
     //******    CLASS VARIABLES
-    //***************************************************************88
+    //***************************************************************88*/
 
     private DcMotor motor;                      //motor that the encoder is attached to
     private RobotOrientation robotOrientation;  //orientation of the encoder relative to robot reference frame
@@ -26,26 +27,26 @@ public class EncoderTracker {
     private Double cumulativeDistance;               //  Total Distance traveled in inches
     private VirtualEncoder virtualEncoder;
 
-    //***************************************************************88
+    /***************************************************************88
     //******    STATIC VARIABLES
-    //***************************************************************88
+    //****************************************************************/
     private static Double clicksPerInch = 434.82;   //  Clicks per inch of travel
 
     //A list of all the encoders being tracked
     private static ArrayList<EncoderTracker> encoders = new ArrayList<>();
 
-    //***************************************************************88
+    /***************************************************************88
     //******    ENUMERATIONS
-    //***************************************************************88
+    //****************************************************************/
 
     public enum RobotOrientation{
         FORWARD,
         LATERAL
     }
 
-    //***************************************************************88
+    /***************************************************************88
     //******    SIMPLE GETTERS AND SETTERS
-    //***************************************************************88
+    //****************************************************************/
     @Override
     public String toString(){
         String motorName;
