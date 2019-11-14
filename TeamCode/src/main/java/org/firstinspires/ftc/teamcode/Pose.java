@@ -2,28 +2,30 @@ package org.firstinspires.ftc.teamcode;
 
 import static java.lang.String.format;
 
+/**
+ * Pose represents the robots position AND heading relative to field coordinates
+ * It can also carry instructions on what to do after an auton travel leg
+ */
 public class Pose {
-    //****   Pose represents the robots position AND heading relative to field coordinates
 
-    //***************************************************************88
+    /****************************************************************
     //******    CLASS VARIABLES
-    //***************************************************************88
+    //***************************************************************/
 
     private Double x;               // in Inches, 0 at center of field, positive running towards foundation side
     private Double y;               // In Inches, 0 at center of field, positive running towards blue side
     private Double heading;         // Degrees, 0 inline with x-axis, positive CCW when viewed from top
-    //private PoseError poseError;    // Error between this pose and a target pose
     private PostMoveActivity postMoveActivity;      //  To actuate actions in Auton
 
-    //***************************************************************88
+    /***************************************************************
     //******    STATIC VARIABLES
-    //***************************************************************88
+    //****************************************************************/
     private static final double overallFieldLength = 72.0;  //in inches
 
 
-    //***************************************************************88
+    /***************************************************************
     //******    ENUMERATIONS
-    //***************************************************************88
+    //***************************************************************/
     public enum StartingPose{
         RED_FOUNDATION (-12.0, -62.0, 90.0)
         , BLUE_FOUNDATION (22.0, 62.0, -90.0)
@@ -58,12 +60,13 @@ public class Pose {
         LOWER_RAKE,
         RAISE_RAKE,
         RAISE_LIFTER,
-        CYCLE_CLAW
+        CYCLE_CLAW,
+        SCAN_FOR_SKYSTONE
     }
 
-    //***************************************************************88
+    /*****************************************************************
     //******    CONSTRUCTORS
-    //***************************************************************88
+    //****************************************************************/
 
     public Pose(){}     //Default constructor
 
@@ -71,34 +74,26 @@ public class Pose {
         this.x = xInput;
         this.y = yInput;
         this.heading = headingInput;
-        //this.poseError = new PoseError();
         this.postMoveActivity = PostMoveActivity.NONE;
     }
 
     public Pose (Double xInput, Double yInput, Double headingInput, PostMoveActivity postMoveActivity){
-        this.x = xInput;
-        this.y = yInput;
-        this.heading = headingInput;
-        this.postMoveActivity = postMoveActivity;
-        //this.poseError = new PoseError();
-    }
+        this(xInput, yInput, headingInput);
 
+        //Update the post move activity
+        this.postMoveActivity = postMoveActivity;
+    }
 
     //  When using a pre-defined StartingPose from the enumeration
     public Pose(StartingPose startingPose) {
-        this.x = startingPose.getxStart();
-        this.y = startingPose.getyStart();
-        this.heading = startingPose.getHeadingStart();
-        this.postMoveActivity = PostMoveActivity.NONE;
-
+        this(startingPose.getxStart(), startingPose.getyStart(), startingPose.getHeadingStart());
     }
 
 
 
-
-    //***************************************************************88
+    /*****************************************************************
     //******    SIMPLE GETTERS AND SETTERS
-    //***************************************************************88
+    //****************************************************************/
     public Double getX() {
         return x;
     }
@@ -130,13 +125,18 @@ public class Pose {
         this.heading = heading;
     }
 
+    public void setPostMoveActivity(PostMoveActivity activity){
+        this.postMoveActivity = activity;
+    }
+
     //***************************************************************88
     //******    METHODS
     //***************************************************************88
 
     @Override
     public String toString(){
-        return "(" + format("%.2f",x) + " ," + format("%.2f",y) + " @ " + format("%.2f",heading) + ")";
+        return "(" + format("%.2f",x) + " ," + format("%.2f",y) + " @ " + format("%.2f",heading)
+                + "-->" + this.postMoveActivity.name() + ")";
     }
 
 }

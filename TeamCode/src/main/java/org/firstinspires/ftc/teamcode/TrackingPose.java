@@ -30,6 +30,7 @@ public class TrackingPose extends Pose {
                                         //  This is usually the same as headingError
                                         //  But becomes locked when near target to allow for overshoot
 
+
     //***************************************************************88
     //******    CONSTRUCTORS
     //***************************************************************88
@@ -44,7 +45,13 @@ public class TrackingPose extends Pose {
         this.headingErrorLocked = false;
         this.poseError = new PoseError(this);
         this.travelDirection = this.getHeadingError();
+        this.setPostMoveActivity(PostMoveActivity.NONE);
     }
+    public TrackingPose(Pose startingPose, Pose targetPose, double previousInitialGyroOffset) {
+        this(startingPose, targetPose);
+        this.initialGyroOffset = previousInitialGyroOffset;
+    }
+
 
     //***************************************************************88
     //******    GETTERS AND SETTERS

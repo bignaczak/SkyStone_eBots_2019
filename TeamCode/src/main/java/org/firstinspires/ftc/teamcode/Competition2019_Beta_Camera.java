@@ -7,7 +7,15 @@ import com.qualcomm.robotcore.hardware.DigitalChannel;
 import java.util.ArrayList;
 
 @TeleOp
-public class Competition2019_Beta extends eBotsOpMode2019 {
+public class Competition2019_Beta_Camera extends eBotsAuton2019 {
+
+
+    /****************************************************************
+     //******    CONFIGURATION PARAMETERS
+     //***************************************************************/
+    private GyroSetting gyroConfig = GyroSetting.EVERY_LOOP;
+
+    /****************************************************************/
 
     /** Change the lifter power behavior offset from current position
      *    It gets rid of the timer and only applies increment to current position
@@ -15,6 +23,7 @@ public class Competition2019_Beta extends eBotsOpMode2019 {
      *    Speed of lifter can be adjusted with leftBumper && right_stick_y
      */
 
+    private Integer blockHeightClicks = -475;
     //***************************************************************
     //Initialize Lifter limit switches
     //***************************************************************
@@ -65,7 +74,6 @@ public class Competition2019_Beta extends eBotsOpMode2019 {
         lifterAtBottom = hardwareMap.get(DigitalChannel.class, "lifterLimit2");
 
 
-
         //***************************************************************
         //Initialize the variables that are being used in the main loop
         //***************************************************************
@@ -83,23 +91,20 @@ public class Competition2019_Beta extends eBotsOpMode2019 {
 
 
         //***************************************************************
-        //  END OF OPMODE INITIALIZATION
-        //  Wait for the game to start(driver presses PLAY)
+        //  Open up the webcam
         //***************************************************************
-        writeTelemetry();
-
+        prepWebcam();
 
         //***************************************************************
         //  END OF OPMODE INITIALIZATION
         //  Wait for the game to start(driver presses PLAY)
         //***************************************************************
         waitForStart();
-        //  To protect for the case that the arm isn't extended, first raise lifter
         raiseLifterToExtendArm();
-        //  Then find the zero point
         findLifterZero();
-
         while(opModeIsActive()) {
+            scanForSkystone();
+
             //GAMEPAD1 INPUTS
             //----------------------------------------
             //Get the drive inputs from the controller
@@ -325,9 +330,15 @@ public class Competition2019_Beta extends eBotsOpMode2019 {
                 autoReleaseBlock(motorList);
             }
 
-            writeTelemetry();
+            //writeTelemetry();
 
         }
+
+        //  Close vuforia webcam interface
+        if (tfod != null) {
+            tfod.shutdown();
+        }
+
 
 
     }
@@ -491,6 +502,7 @@ public class Competition2019_Beta extends eBotsOpMode2019 {
 
 
     }
+
 
     private void writeTelemetry(){
         telemetry.addData("Lifter Target", lifter.getTargetPosition());

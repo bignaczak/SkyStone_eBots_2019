@@ -5,8 +5,9 @@ import static java.lang.String.format;
 public class StopWatch {
     private Long startTime;
 
+    //This constructor was refactored 11/11 to start the timer during instantiation
     public StopWatch(){
-        startTime = 0L;
+        startTime = System.currentTimeMillis();
     }
 
     public void startTimer(){
@@ -23,7 +24,7 @@ public class StopWatch {
 
     @Override
     public String toString(){
-        return format("%.2", getElapsedTimeSeconds()) + " seconds";
+        return format("%.2f", getElapsedTimeSeconds()) + " seconds";
     }
 
     public String toString(Integer loopCount){

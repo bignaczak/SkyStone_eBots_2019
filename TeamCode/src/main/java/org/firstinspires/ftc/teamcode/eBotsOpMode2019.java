@@ -8,6 +8,7 @@ import com.qualcomm.hardware.bosch.JustLoggingAccelerationIntegrator;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DigitalChannel;
 import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.robotcore.external.ClassFactory;
@@ -41,6 +42,11 @@ import static java.lang.String.format;
 
 public abstract class eBotsOpMode2019 extends LinearOpMode {
 
+
+    /****************************************************************
+     //******    CLASS VARIABLES
+     //***************************************************************/
+
     //private Gyroscope imu;
     public DcMotor frontLeft;
     public DcMotor frontRight;
@@ -48,9 +54,6 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
     public DcMotor backRight;
 
     //Manipulation Motors
-    public DcMotor armAngleMotor;
-    public DcMotor armExtensionMotor;
-    public DcMotor collectMotor;
     public DcMotor latchMotor;
     protected DcMotor lifter;
     protected Servo foundationRake;
@@ -58,7 +61,11 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
     protected Servo rotate2ClawServo;
     protected CRServo extendArm;
     protected Servo claw;
+    protected DcMotor rollerGripper;
 
+    //  Limit Switches
+    protected DigitalChannel lifterLimit1;
+    protected DigitalChannel lifterAtBottom;
 
 
     public BNO055IMU imu;          //Create a variable for the gyroscope on the Expansion Hub
@@ -71,7 +78,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
 
 
     //Variables for the TensorFlow Object Detection
-    public static final String TFOD_MODEL_ASSET = "RoverRuckus.tflite";
+    public static final String TFOD_MODEL_ASSET_RR = "RoverRuckus.tflite";
     public static final String LABEL_GOLD_MINERAL = "Gold Mineral";
     public static final String LABEL_SILVER_MINERAL = "Silver Mineral";
 
@@ -96,6 +103,10 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
     protected final Double ROTATE2_CLAW_FORWARD = 0.798;
     protected final Double ROTATE2_CLAW_90RIGHT = 0.289;
 
+    protected final int blockHeightClicks = -475;
+    protected final int LIFTER_UPPER_LIMIT = (int) (4.5 * blockHeightClicks);
+
+
     protected double foundationRakePosition;
     protected double rotate1ClawPosition;
     protected double rotate2ClawPosition;
@@ -105,7 +116,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
 
     protected double timerLimit = 100;  //ms
     protected double clawTimerLimit = 250;  //ms
-    protected double lifterTimerLimit = 250;  //ms
+    protected double lifterTimerLimit = 500;  //ms
 
     protected double rakeIncrement = 0.015;
     protected double clawIncrement = 0.01;
@@ -113,36 +124,36 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
     protected double rotate1ClawIncrement = 0.015;
     protected double rotate2ClawIncrement = 0.015;
     protected double lifterUserInput = 0.0;
-    protected double lifterPowerLevel = 0.2;
+    protected double lifterPowerLevel = 0.6;
+    protected double rollerGripperPowerLevel = 0.8;
 
     protected Boolean clawOpen = true;
 
 
 
     //  2018 Constants
-    final static int ARM_ANGLE_TRAVEL_POSITION = -5600;
-    final static int ARM_ANGLE_DUMP_POSITION = -9500;      //was -8000, -9500 was OK, but may catch side, -11000 might be too low, can hit glass
-
     //These are constants used to define counts per revolution of NEVEREST motors with encoders
     static final int NEVEREST_60_CPR = 1680;
     static final int NEVEREST_40_CPR = 1120;
     static final int NEVEREST_20_CPR = 560;
 
-    //final int ARM_EXTENSION_COLLECTION_POSITION = 27800;
-    final static int ARM_EXTENSION_COLLECTION_POSITION = -54750; //  54946 was observed in -57500;  //test position
-    final static int ARM_EXTENSION_DUMP_POSITION = -27600;
 
     final static int LATCH_DEPLOY_POSITION = -13800;        //-13800 is competition position, -12500 for eBots lander (shorter)
-    final static int LATCH_DRIVE_POSITION = -5900;          //5900 is good, could be a little higher
-
     //****************************************************************
     //END CONSTANTS
 
+    /***************************************************************
+     //******    ENUMERATIONS
+     //***************************************************************/
 
-    //TODO:  Refactor to mineral position
-    enum GoldPosition
+    public enum GoldPosition
     {
         LEFT, CENTER, RIGHT, UNKNOWN;
+    }
+
+    public enum LifterDirection{
+        UP,
+        DOWN
     }
 
     //----------------------------------------------------------------------------------------------
@@ -257,7 +268,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
                 "tfodMonitorViewId", "id", hardwareMap.appContext.getPackageName());
         TFObjectDetector.Parameters tfodParameters = new TFObjectDetector.Parameters(tfodMonitorViewId);
         tfod = ClassFactory.getInstance().createTFObjectDetector(tfodParameters, vuforia);
-        tfod.loadModelFromAsset(TFOD_MODEL_ASSET, LABEL_GOLD_MINERAL, LABEL_SILVER_MINERAL);
+        tfod.loadModelFromAsset(TFOD_MODEL_ASSET_RR, LABEL_GOLD_MINERAL, LABEL_SILVER_MINERAL);
     }
 
     public void initializeImu(){
@@ -281,6 +292,8 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
     }
 
     public void initializeDriveMotors(ArrayList<DcMotor> motorList, boolean areWiresReversed){
+        if (motorList.size()>1) motorList.clear();  //Make sure there aren't any items in the list
+
         frontLeft = hardwareMap.get(DcMotor.class, "frontLeft");
         frontRight = hardwareMap.get(DcMotor.class, "frontRight");
         backLeft = hardwareMap.get(DcMotor.class, "backLeft");
@@ -316,25 +329,164 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         lifter = hardwareMap.get(DcMotor.class, "lifter");
         lifter.setDirection(DcMotor.Direction.REVERSE);
         lifter.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-
-        foundationRake = hardwareMap.get(Servo.class, "foundationRake");
-        rotate1ClawServo = hardwareMap.get(Servo.class, "rotate1Claw");
-        rotate2ClawServo = hardwareMap.get(Servo.class, "rotate2Claw");
-        extendArm = hardwareMap.get(CRServo.class, "extendArm");
-        claw = hardwareMap.get(Servo.class, "claw");
-
-        foundationRakePosition = foundationRake.getPosition();
-        rotate1ClawPosition = rotate1ClawServo.getPosition();
-        rotate2ClawPosition = rotate2ClawServo.getPosition();
-        clawPosition = claw.getPosition();
-
         lifterPosition = lifter.getCurrentPosition();
         lifter.setTargetPosition(lifterPosition);
         lifter.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         lifter.setPower(lifterPowerLevel);
 
+        foundationRake = hardwareMap.get(Servo.class, "foundationRake");
+        rotate1ClawServo = hardwareMap.get(Servo.class, "rotate1Claw");
+        rotate2ClawServo = hardwareMap.get(Servo.class, "rotate2Claw");
+        extendArm = hardwareMap.get(CRServo.class, "extendArm");
+        //claw = hardwareMap.get(Servo.class, "claw");
+        rollerGripper = hardwareMap.get(DcMotor.class, "rollerGripper");
+
+        foundationRakePosition = foundationRake.getPosition();
+        rotate1ClawPosition = rotate1ClawServo.getPosition();
+        rotate2ClawPosition = rotate2ClawServo.getPosition();
+        //clawPosition = claw.getPosition();
+
+
 
     }
+
+    public void initializeLimitSwitches(){
+        /***************************************************************
+        //Initialize Lifter limit switches
+        //**************************************************************/
+        lifterLimit1 = hardwareMap.get(DigitalChannel.class, "lifterLimit1");
+        lifterAtBottom = hardwareMap.get(DigitalChannel.class, "lifterLimit2");
+
+    }
+
+    protected void findLifterZero(){
+        /**
+         * Method to lower lifter until limit switch is contacted to set zero point
+         */
+        StopWatch timer = new StopWatch();
+        Long timeout = 2000L;
+        lifter.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        lifter.setPower(0.3);   //
+        timer.startTimer();
+        while(opModeIsActive() && !lifterAtBottom.getState()
+                && timer.getElapsedTimeMillis()<timeout){
+        }
+        lifter.setPower(0.0);
+        lifter.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        lifterPosition = lifter.getCurrentPosition();
+        lifter.setTargetPosition(lifterPosition);
+        lifter.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        lifter.setPower(lifterPowerLevel);
+    }
+
+    protected void moveLifter(LifterDirection direction){
+        double powerLevel;
+        //Note, for lifter,
+        // --> positive power levels drive down
+        // --> negative power levels drive up
+        if(direction == LifterDirection.DOWN) {
+            // --> positive power levels drive down
+            powerLevel = lifterPowerLevel/2;
+            moveLifterDown(powerLevel);
+        } else{
+            //--> negative power levels drive up
+            powerLevel = -lifterPowerLevel;
+            moveLifterUp(powerLevel);
+        }
+    }
+
+    protected void moveLifterDown(double powerLevel){
+        /**
+         * 1) Checks that limit switch is not activated
+         *    IF LIMIT NOT ACTIVATED:
+         *      2) Sets motor to RUN_WITHOUT_ENCODERS if not already
+         *      3) Sets the power level to half of going upward level (account for gravity)
+         *    IF LIMIT ACTIVATED:
+         *      4) Hold lifter at current position
+         */
+
+        //  For moving down
+        //  1) Checks that limit switch is not activated
+        if (!lifterAtBottom.getState()) {  //Make sure that the limit switch isn't activated
+            //  2) Sets motor to RUN_WITHOUT_ENCODERS if not already
+            if (lifter.getMode() != DcMotor.RunMode.RUN_WITHOUT_ENCODER) {
+                lifter.setPower(0.0);
+                lifter.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            }
+            // 3) Sets the power level to half of going upward level (account for gravity)
+            lifter.setPower(powerLevel);
+
+        } else { //  When limit switch is engaged
+            holdLifterAtCurrentPosition();
+        }
+    }
+
+    protected void moveLifterUp (double powerLevel){
+        /**
+         * 1) Checks that limit condition is not activated
+         *    IF LIMIT NOT ACTIVATED:
+         *      2) Sets motor to RUN_WITHOUT_ENCODERS if not already
+         *      3) Sets the power level
+         *    IF LIMIT ACTIVATED:
+         *      4) Hold lifter at current position
+         */
+        boolean liftAtUpperLimit = (lifter.getCurrentPosition() <= LIFTER_UPPER_LIMIT) ? true : false;
+
+        //  1)  Checks that limit condition is not activated
+        if (!liftAtUpperLimit) {  //Make sure that the limit condition isn't activated
+            //  2) Sets motor to RUN_WITHOUT_ENCODERS if not already
+            if (lifter.getMode() != DcMotor.RunMode.RUN_WITHOUT_ENCODER) {
+                lifter.setPower(0.0);
+                lifter.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            }
+            // 3) Sets the power level
+            lifter.setPower(powerLevel);
+
+        } else { //  When limit switch is engaged
+            holdLifterAtCurrentPosition();
+        }
+    }
+
+    protected void holdLifterAtCurrentPosition() {
+        /**
+         *  1) Get the current position and stop motor
+         *  2) Set the RunMode to RUN_TO_POSITION if needed
+         *  3) Set the target position to the current position
+         *  4) Set the power level
+         */
+
+        //  1) Get the current position and stop motor
+        lifterPosition = lifter.getCurrentPosition();
+        lifter.setPower(0.0);
+
+        //  2) Set the RunMode to RUN_TO_POSITION if needed
+        if (lifter.getMode() != DcMotor.RunMode.RUN_TO_POSITION) {
+            lifter.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        }
+        //  3) Set the target position to the current position
+        lifter.setTargetPosition(lifterPosition);
+
+        //  4) Set the power level
+        lifter.setPower(lifterPowerLevel);
+    }
+
+
+        protected void raiseLifterToExtendArm(){
+        lifter.setTargetPosition(-1500);
+        lifter.setPower(lifterPowerLevel);
+
+        StopWatch stopWatch = new StopWatch();
+        while(stopWatch.getElapsedTimeMillis()<1000){
+            //RAISING lifter
+        }
+    }
+
+    protected void setLifterHeightToGrabStone(){
+        lifter.setTargetPosition(blockHeightClicks);
+        lifter.setPower(lifterPowerLevel);
+    }
+
+
 
     public double getGyroReadingDegrees(){
         angles   = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
@@ -660,12 +812,15 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         // Field heading is the imu direction based on the assumed zero point from lander
         // This command calculates the turn inputs for twistToAngle function and calls it
         // Angles in this routine are in DEGREES (unless otherwise noted)
-
+        String debugTag = "BTI_turnToFieldHeading";
+        Log.d(debugTag, "_______Start of turnToFieldHeading___________");
         //requiredTurnAngle is in DEGREES when calculated using TrackingPose, also FO sign
         double requiredTurnAngle = checkHeadingVersusTarget(trackingPose);  //How many angles must turn
+        Log.d(debugTag, "required turn calculated: " + requiredTurnAngle);
 
         //must reverse sign for twistToAngle routine (too scared to fix)
         twistToAngle(-requiredTurnAngle,speed, motors);
+        Log.d(debugTag, "Completed twistToAngle");
 
         //Note:  turnError is initially returned in Radians
         double turnError = checkHeadingVersusTarget(trackingPose);

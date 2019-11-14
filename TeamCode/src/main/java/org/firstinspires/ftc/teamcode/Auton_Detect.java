@@ -1,17 +1,13 @@
 package org.firstinspires.ftc.teamcode;
 
-import android.util.Log;
-
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.hardware.DcMotor;
 
 import java.util.ArrayList;
 
-import static java.lang.String.format;
-
 @Autonomous
 
-public class Auton_Blue_Foundation_W1 extends eBotsAuton2019 {
+public class Auton_Detect extends eBotsAuton2019 {
 
     /****************************************************************
     //******    CONFIGURATION PARAMETERS
@@ -61,7 +57,6 @@ public class Auton_Blue_Foundation_W1 extends eBotsAuton2019 {
             currentPose = new TrackingPose(wayPoses.get(0), wayPoses.get(0));
         }
 
-        //  Instantiate gyro object if being utilized
         //This is called only once to document offset of gyro from field coordinate system
 
         if (useGyroForNavigation) {
@@ -75,6 +70,11 @@ public class Auton_Blue_Foundation_W1 extends eBotsAuton2019 {
         String loopMetrics = "Loop Initialized";
         writeOdometryTelemetry(loopMetrics, currentPose);
 
+        /***************************************************************
+         * Prepare the webcam
+         ***************************************************************/
+
+        prepWebcam();
 
         /***************************************************************
         //  END OF OPMODE INITIALIZATION
@@ -82,55 +82,8 @@ public class Auton_Blue_Foundation_W1 extends eBotsAuton2019 {
         //**************************************************************/
         waitForStart();
 
-        //Travel first leg
-        Log.d("BTI_runOpMode", "~~~~~~~~~~~~~Starting LegStarting Leg " + wayPoseIndex.toString());
-
-        raiseLifterToExtendArm();
-        //***************************************************************
-        //  MAKE FIRST MOVE
-        //***************************************************************
-
-        TrackingPose endPose = travelToNextPose(currentPose, motorList);
-        wayPoseIndex++;
-
-        Double currentPoseHeadingError;
-        while(opModeIsActive() && wayPoseIndex< wayPoses.size()) {
-
-            //Perform actions specified in the targetPose of the path leg that was just completed
-            executePostMoveActivity(currentPose);
-            //Correct heading angle if not within tolerance limits set in accuracyConfig
-            correctHeading(currentPose, motorList);
-
-            //Set ending of previous leg as the starting pose for new leg
-            //  Position and pose are taken from the TrackingPose object returned by travelToNextPose
-            Pose startPose = new Pose(endPose.getX(), endPose.getY(), endPose.getHeading());
-            currentPose = new TrackingPose(startPose, wayPoses.get(wayPoseIndex));
-
-            //Must set the initialGryOffset
-            //This routine first sets the heading and then sets the initialGyroOffset
-            //This is likely redundant and can be replaced with just a call to setInitialGyroOffset
-            //Todo: Verify that copying the initialGyroOffset works and delete setInitialOffset...
-            currentPose.copyInitialGyroOffsetBetweenLegs(initialGyroOffset);
-            //setInitialOffsetForTrackingPose(imu, currentPose, initialGyroOffset);
-
-            Log.d("BTI_runOpMode", "~~~~~~~~~~~~~Starting Leg " + wayPoseIndex.toString());
-            endPose = travelToNextPose(currentPose, motorList);
-
-            wayPoseIndex++;
-        }
-
-        correctHeading(currentPose, motorList);
-
-        //  Verify all drive motors are stopped
-        if(!simulateMotors) stopMotors(motorList);
-
-        //  Hold telemetry for a few seconds
-        StopWatch timer = new StopWatch();
-        timer.startTimer();
-        loopMetrics = "All Points Completed";
-
-        while (opModeIsActive() && timer.getElapsedTimeSeconds() < 5){
-            writeOdometryTelemetry(loopMetrics, currentPose);
+        while (opModeIsActive()){
+            scanForSkystone();
         }
 
         //  Close vuforia webcam interface

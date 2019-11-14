@@ -105,25 +105,26 @@ public class EncoderTracker {
     //***************************************************************88
 
     public static void getNewPose (TrackingPose trackingPose){
+        boolean debugOn = false;
         String debugTag = "BTI_getNewPose";
-        Integer newClicks;                   //new encoder position for this iteration
+        int incrementalClicks;                   //new encoder position for this iteration
         Double newX = trackingPose.getX();   //starting position for x
         Double newY = trackingPose.getY();   //starting position for y
         Double encoderAngle;                 //to track field-oriented encoder orientation
         Double totalDistance;                //linear distance traveled before x and y components calculated
 
-        Log.d(debugTag+ " Start", trackingPose.toString());
-        Log.d(debugTag + " Error", trackingPose.printError());
+        if (debugOn) Log.d(debugTag+ " Start", trackingPose.toString());
+        if (debugOn) Log.d(debugTag + " Error", trackingPose.printError());
         // TODO: 10/13/2019 Add consideration for rotation
 
         //  Loop through the encoders to figure out how much
         for(EncoderTracker e: encoders){
             //Calculate distance traveled for encoder
+            int newReading = e.getClicks();
+            incrementalClicks = newReading - e.currentClicks;
+            totalDistance = Math.abs((incrementalClicks) / clicksPerInch);
 
-            newClicks = e.getClicks();
-            totalDistance = Math.abs((newClicks - e.currentClicks) / clicksPerInch);
-
-            e.cumulativeClicks += Math.abs(newClicks);
+            e.cumulativeClicks += Math.abs(incrementalClicks);
             e.cumulativeDistance += Math.abs(totalDistance);
 
             //Consider the placement of the encoder on the robot
@@ -160,17 +161,17 @@ public class EncoderTracker {
             newX += deltaX;
             newY += deltaY;
 
-            Log.d(debugTag + " D/x/y", e.robotOrientation.toString() + " " +
+            if (debugOn) Log.d(debugTag + " D/x/y", e.robotOrientation.toString() + " " +
                     format("%.3f", totalDistance) + " / " +
                     format("%.3f", deltaX) + " / " + format("%.3f", deltaY));
 
             //  Update the encoder position for next iteration of the loop
-            e.currentClicks = newClicks;
+            e.currentClicks = newReading;
         }
-
+        if (debugOn) Log.d(debugTag, "About to update position with new X and Y coordinates");
         trackingPose.setX(newX);
         trackingPose.setY(newY);
-
+        if (debugOn) Log.d(debugTag, "...Completed");
         //Log.d(debugTag + " Ending", trackingPose.toString());
 
         //trackingPose.setHeading();        //Add this once the 3rd encoder is installed
