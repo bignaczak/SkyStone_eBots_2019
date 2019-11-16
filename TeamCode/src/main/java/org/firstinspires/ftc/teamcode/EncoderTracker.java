@@ -5,6 +5,7 @@ import android.util.Log;
 import com.qualcomm.robotcore.hardware.DcMotor;
 
 import java.util.ArrayList;
+import java.util.ListIterator;
 
 import static java.lang.String.format;
 
@@ -47,14 +48,6 @@ public class EncoderTracker {
     /***************************************************************88
     //******    SIMPLE GETTERS AND SETTERS
     //****************************************************************/
-    @Override
-    public String toString(){
-        String motorName;
-        motorName = (motor == null) ? "Virtual" : motor.getDeviceName();
-        return (motorName + " | " + this.robotOrientation.toString() + ":  "
-                + this.cumulativeClicks.toString() +  " clicks, "
-                + format("%.2f", this.cumulativeDistance) + " in");
-    }
 
     public Integer getClicks(){
         Integer clicks;
@@ -73,9 +66,9 @@ public class EncoderTracker {
     public static Integer getEncoderTrackerCount(){
         return encoders.size();
     }
-    //***************************************************************88
+    /****************************************************************
     //******    CONSTRUCTORS
-    //***************************************************************88
+    //***************************************************************/
 
     public EncoderTracker (DcMotor motor, RobotOrientation robotOrientation){
         this.motor = motor;
@@ -99,13 +92,12 @@ public class EncoderTracker {
         encoders.add(this);
     }
 
-
-    //***************************************************************88
+    /***************************************************************
     //******    STATIC METHODS
-    //***************************************************************88
+    //****************************************************************/
 
     public static void getNewPose (TrackingPose trackingPose){
-        boolean debugOn = false;
+        boolean debugOn = true;
         String debugTag = "BTI_getNewPose";
         int incrementalClicks;                   //new encoder position for this iteration
         Double newX = trackingPose.getX();   //starting position for x
@@ -113,13 +105,19 @@ public class EncoderTracker {
         Double encoderAngle;                 //to track field-oriented encoder orientation
         Double totalDistance;                //linear distance traveled before x and y components calculated
 
-        if (debugOn) Log.d(debugTag+ " Start", trackingPose.toString());
-        if (debugOn) Log.d(debugTag + " Error", trackingPose.printError());
+        if (debugOn) {
+            Log.d(debugTag, "Start:" + trackingPose.toString());
+            Log.d(debugTag, "Error: " + trackingPose.printError());
+            Log.d(debugTag, "Num Encoders: " + encoders.size());
+        }
         // TODO: 10/13/2019 Add consideration for rotation
 
         //  Loop through the encoders to figure out how much
-        for(EncoderTracker e: encoders){
+        for (EncoderTracker e: encoders){
             //Calculate distance traveled for encoder
+            if (debugOn) {
+                Log.d(debugTag, e.toString());
+            }
             int newReading = e.getClicks();
             incrementalClicks = newReading - e.currentClicks;
             totalDistance = Math.abs((incrementalClicks) / clicksPerInch);
@@ -196,4 +194,30 @@ public class EncoderTracker {
     public static void purgeExistingEncoderTrackers(){
         if (encoders.size() > 0) encoders.clear();
     }
+
+    public static void updateEncoderCurrentClicks(){
+        for(EncoderTracker e: encoders){
+            e.currentClicks = e.getClicks();
+        }
+    }
+/***************************************************************
+ //******    CLASS METHODS
+ //****************************************************************/
+
+    @Override
+    public String toString(){
+        String outputString;
+        if (this.motor != null) {
+            outputString =  "Real encoder " + this.robotOrientation.name()
+                    + " Motor Port: " + this.motor.getPortNumber() + " Clicks: "
+                    + this.motor.getCurrentPosition();
+        } else {
+            outputString = "Virtual Encoder, Orientation: " + this.robotOrientation.name()
+                    + " Clicks: " + this.getClicks();
+        }
+        return outputString;
+    }
+
 }
+
+

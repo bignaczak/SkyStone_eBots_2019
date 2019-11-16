@@ -97,7 +97,7 @@ public class Auton_Blue_Foundation_W1 extends eBotsAuton2019 {
         while(opModeIsActive() && wayPoseIndex< wayPoses.size()) {
 
             //Perform actions specified in the targetPose of the path leg that was just completed
-            executePostMoveActivity(currentPose);
+            executePostMoveActivity(currentPose,motorList, alliance);
             //Correct heading angle if not within tolerance limits set in accuracyConfig
             correctHeading(currentPose, motorList);
 

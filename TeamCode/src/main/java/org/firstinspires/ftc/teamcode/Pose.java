@@ -28,9 +28,11 @@ public class Pose {
     //***************************************************************/
     public enum StartingPose{
         RED_FOUNDATION (-12.0, -62.0, 90.0)
-        , BLUE_FOUNDATION (22.0, 62.0, -90.0)
+        , BLUE_FOUNDATION (39.0, 62.0, 90.0)
         , RED_QUARRY (-12.0, -62.0, 90.0)
-        , BLUE_QUARRY (-12.0, 62.0, -90.0);
+        , BLUE_QUARRY (-12.0, 62.0, -90.0)
+        , FOUNDATION(39.0, 62.0, 90.0)
+        , QUARRY (-39.0, 62.0, -90.0);
 
         private double xStart;
         private double yStart;
@@ -61,8 +63,11 @@ public class Pose {
         RAISE_RAKE,
         RAISE_LIFTER,
         CYCLE_CLAW,
-        SCAN_FOR_SKYSTONE
+        SCAN_FOR_SKYSTONE,
+        RAISE_LIFTER_TO_EXTEND_ARM,
+        EXTEND_ARM_THEN_LOWER_LIFTER
     }
+
 
     /*****************************************************************
     //******    CONSTRUCTORS
@@ -129,14 +134,31 @@ public class Pose {
         this.postMoveActivity = activity;
     }
 
-    //***************************************************************88
-    //******    METHODS
-    //***************************************************************88
+    /***************************************************************88
+    //******    Class METHODS
+    //***************************************************************/
 
     @Override
     public String toString(){
         return "(" + format("%.2f",x) + " ," + format("%.2f",y) + " @ " + format("%.2f",heading)
                 + "-->" + this.postMoveActivity.name() + ")";
+    }
+
+    /***************************************************************88
+     //******    Static METHODS
+     //***************************************************************/
+    public static Pose getBridgeParkPose(TrackingPose trackingPose, eBotsAuton2019.Alliance alliance){
+        double parkX = 4.0;     //Center of the robot 4" from midline in building zone
+        double parkY = 39.0;    //Near the inner edge of the field
+        double heading = trackingPose.getHeading();
+
+        if(trackingPose.getX() < 0){
+            parkX = - parkX;
+        }
+        if (alliance == eBotsAuton2019.Alliance.RED){
+            parkY = -parkY;
+        }
+        return new Pose(parkX, parkY, heading);
     }
 
 }

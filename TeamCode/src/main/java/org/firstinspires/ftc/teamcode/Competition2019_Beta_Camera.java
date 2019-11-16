@@ -323,11 +323,11 @@ public class Competition2019_Beta_Camera extends eBotsAuton2019 {
 
             //----------Initiate AutoGrab----------------
             if (gamepad2.left_bumper && gamepad2.left_trigger > 0.3){
-                autoGrabBlock(motorList);
+                autoGrabStone(motorList);
             }
 
             if (gamepad2.left_bumper && gamepad2.right_trigger > 0.3){
-                autoReleaseBlock(motorList);
+                autoReleaseStone(motorList);
             }
 
             //writeTelemetry();
@@ -342,8 +342,8 @@ public class Competition2019_Beta_Camera extends eBotsAuton2019 {
 
 
     }
-
-    private void autoGrabBlock(ArrayList<DcMotor> motorList){
+    @Override
+    protected void autoGrabStone(ArrayList<DcMotor> motorList){
         /**
          * Automated routine to grab a block
          * 1) raise the lifter
@@ -458,50 +458,6 @@ public class Competition2019_Beta_Camera extends eBotsAuton2019 {
 
     }
 
-    private void autoReleaseBlock(ArrayList<DcMotor> motorList){
-        /**
-         * 1) Lift Arm
-         * 2) Pulse rollerGripper motor to release block
-         */
-
-        Integer lifterAutoReleaseIncrement = blockHeightClicks;
-        final Double rollerGripperSpeed = 0.35;  //slow release speed
-        final Double liftPowerLevelRelease = 0.25;
-        Double rollerGripperPulseSpeed;
-        Integer currentLifterPositionError;
-        Long pulseTimeOut = 500L;
-        Long timeout = 1400L;
-
-        StopWatch timer = new StopWatch();
-        timer.startTimer();
-
-
-        lifterPosition = lifter.getCurrentPosition() + lifterAutoReleaseIncrement;
-        lifter.setTargetPosition(lifterPosition);
-        lifter.setPower(liftPowerLevelRelease);  //Try and raise slowly
-        Boolean gripperPowerOn = true;
-        currentLifterPositionError = lifterPosition - lifter.getCurrentPosition();
-
-        while (opModeIsActive() && Math.abs(currentLifterPositionError) > 50
-                && timer.getElapsedTimeMillis() < timeout){
-            rollerGripper.setPower(rollerGripperSpeed);
-            /*
-            if (gripperPowerOn) {
-                rollerGripperPulseSpeed = rollerGripperSpeed;
-            } else rollerGripperPulseSpeed = 0.0;
-            pulseRollerGripper(pulseTimeOut, rollerGripperPulseSpeed);
-            */
-            writeAutoGrabTelemetry("Releasing Block");
-
-            currentLifterPositionError = lifterPosition - lifter.getCurrentPosition();
-            gripperPowerOn = !gripperPowerOn;
-        }
-
-        //  Set power level back
-        lifter.setPower(lifterPowerLevel);
-
-
-    }
 
 
     private void writeTelemetry(){

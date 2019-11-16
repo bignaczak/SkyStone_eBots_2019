@@ -13,6 +13,8 @@ import org.firstinspires.ftc.robotcore.external.tfod.TFObjectDetector;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.ListIterator;
+import java.util.concurrent.ThreadLocalRandom;
 
 import static java.lang.String.format;
 
@@ -24,9 +26,9 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
 
     protected Boolean simulateMotors = false;
     protected Boolean useGyroForNavigation;
-    protected Integer gyroCallFrequency;
-    protected Double saturationLimit;
-    protected Double turnSpeed;
+    protected int gyroCallFrequency;
+    protected double saturationLimit;
+    protected double turnSpeed;
     protected double pGain;
     protected double iGain;
 
@@ -81,7 +83,7 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
     public enum Speed{
         SLOW (0.35, 0.3, 0.15, 0.0),
         MEDIUM (0.60,0.3,  0.07, 0.0),
-        FAST (0.8, 0.3, 0.05, 0.0);
+        FAST (0.8, 0.5, 0.05, 0.0);
 
         /**  ENUM VARIABLES     **************/
         private Double maxSpeed;
@@ -91,10 +93,10 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
 
         /**  CONSTRUCTOR    **************/
         Speed(Double speed, Double turnSpeed, Double pGain, Double iGain){
-            maxSpeed = speed;
-            turnSpeed = turnSpeed;
-            pGainEnum = pGain;
-            iGainEnum = iGain;
+            this.maxSpeed = speed;
+            this.turnSpeed = turnSpeed;
+            this.pGainEnum = pGain;
+            this.iGainEnum = iGain;
         }
         /**  ENUM GETTERS AND SETTERS  ***********/
         public Double getMaxSpeed(){return this.maxSpeed;}
@@ -114,8 +116,8 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
 
         /**  CONSTRUCTOR    **************/
         GyroSetting (Boolean gyroPower, Integer frequency){
-            gyroOn = gyroPower;
-            readFrequency = frequency;
+            this.gyroOn = gyroPower;
+            this.readFrequency = frequency;
         }
 
         /**  ENUM GETTERS AND SETTERS  ***********/
@@ -199,41 +201,30 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
         //These waypoints are for the blue side
         if (fieldSide == FieldSide.FOUNDATION){
             //Blue Foundation
-            wayPoses.add(new Pose(39.0, 60.0, 90.0));
-            //travel in the positive Y direction to midline
+            wayPoses.add(new Pose(Pose.StartingPose.FOUNDATION));
+            //Move to foundation plate and lower rake
             wayPoses.add(new Pose(50.0, 34.0, 90.0, Pose.PostMoveActivity.LOWER_RAKE));
-            //travel back 12 inches
-            wayPoses.add(new Pose(54.0, 56.0, 90.0, Pose.PostMoveActivity.RAISE_RAKE));
-            //travel to blue foundation start point
-            wayPoses.add(new Pose(22.0, 56.0, 90.0));
-            //travel back 12 inches
-            wayPoses.add(new Pose(22.0, 16.0, 90.0));
-            //travel to blue foundation start point
-            wayPoses.add(new Pose(48.0, 16.0, 90.0));
-            //travel to blue foundation start point
-            wayPoses.add(new Pose(48.0, 40.0, 90.0));
-            //move back a little
-            wayPoses.add(new Pose(48.0, 35.0, 90.0));
-            //move around foundation
-            wayPoses.add(new Pose(18.0, 35.0, 90.0));
-            //move near wall
-            wayPoses.add(new Pose(18.0, 60.0, 90.0));
-            //park in middle
-            wayPoses.add(new Pose(0.0, 60.0, 90.0));
+            //drag foundation over to wall
+            wayPoses.add(new Pose(50.0, 62.0, 90.0, Pose.PostMoveActivity.RAISE_RAKE));
+            //move sideways towards center of field
+            wayPoses.add(new Pose(18.0, 62.0, 90.0));
+            //move backwards towards center and raise arm, then lower for driving under bridge
+            wayPoses.add(new Pose(18.0, 39.0, 180.0, Pose.PostMoveActivity.EXTEND_ARM_THEN_LOWER_LIFTER));
+            //Stay in same location but spin to be skinny under bridge
+            wayPoses.add(new Pose(18.0, 39.0, 180.0));
+            //travel to position to observe skystones
+            wayPoses.add(new Pose(-25.0, 60.0, -90.0,Pose.PostMoveActivity.SCAN_FOR_SKYSTONE));
+
 
             //Park in the middle
             //wayPoses.add(new Pose(-48.0, 0.0, 180.0));
         } else if (fieldSide == FieldSide.QUARRY){
             // Start right next to depot
-            wayPoses.add(new Pose(-39.0, 63.0, -90.0));
-            //Scan stones 0 and 1
-            wayPoses.add(new Pose(-59.0, 60.0, -90.0, Pose.PostMoveActivity.SCAN_FOR_SKYSTONE));
-            //Scan stones 2 and 3
-            wayPoses.add(new Pose(-41.0, 60.0, -90.0, Pose.PostMoveActivity.SCAN_FOR_SKYSTONE));
-            //Scan stones 4 and 5
+            wayPoses.add(new Pose(Pose.StartingPose.QUARRY));
+            //Move to position to scan stones 4 and 5 and extend arm
+            wayPoses.add(new Pose(-25.0, 60.0, -90.0, Pose.PostMoveActivity.EXTEND_ARM_THEN_LOWER_LIFTER));
+            // Stay in the same place and scan quarry
             wayPoses.add(new Pose(-25.0, 60.0, -90.0, Pose.PostMoveActivity.SCAN_FOR_SKYSTONE));
-            //park in middle
-            //wayPoses.add(new Pose(-39.0, 63.0, -90.0));
 
         } else {
             //start at the origin facing X axis
@@ -244,8 +235,6 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
             wayPoses.add(new Pose(0.0, -10.0, 90.0));
             //move back to origin
             wayPoses.add(new Pose(0.0, -15.0, 90.0));
-
-
         }
 
         //  Apply the transformation.
@@ -518,6 +507,9 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
         }
         //Read new angle from gyro
         currentPose.setHeadingFromGyro(getGyroReadingDegrees());  //Update heading with robot orientation
+
+        //Update the encoder clicks
+        EncoderTracker.updateEncoderCurrentClicks();
     }
 
     protected void prepWebcam(){
@@ -598,8 +590,9 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
     /***********************************************************************
      * Process Post Move activities
      * @param currentPose
+     * @param alliance
      ***********************************************************************/
-    public void executePostMoveActivity(TrackingPose currentPose){
+    public void executePostMoveActivity(TrackingPose currentPose, ArrayList<DcMotor> motorList, Alliance alliance){
         Pose targetPose = currentPose.getTargetPose();
         Pose.PostMoveActivity activity = targetPose.getPostMoveActivity();
         if (activity == Pose.PostMoveActivity.LOWER_RAKE){
@@ -607,22 +600,17 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
         } else if (activity == Pose.PostMoveActivity.RAISE_RAKE){
             raiseRake();
         } else if (activity == Pose.PostMoveActivity.SCAN_FOR_SKYSTONE){
-            //Based on the Pose x coordinate, determine which stones are being viewed
-            QuarryStone firstStone;
-            QuarryStone secondStone;
-            if (currentPose.getX() < -55.0){
-                //Near the end of the field
-                firstStone = QuarryStone.getQuarryStone(QuarryStone.StoneLocation.ZERO);
-                secondStone = QuarryStone.getQuarryStone(QuarryStone.StoneLocation.ONE);
-            } else if (currentPose.getX() < -39.0){
-                firstStone = QuarryStone.getQuarryStone(QuarryStone.StoneLocation.TWO);
-                secondStone = QuarryStone.getQuarryStone(QuarryStone.StoneLocation.THREE);
-            } else {
-                firstStone = QuarryStone.getQuarryStone(QuarryStone.StoneLocation.FOUR);
-                secondStone = QuarryStone.getQuarryStone(QuarryStone.StoneLocation.FIVE);
-            }
-            calculateSkyStonePosition(firstStone, secondStone);
+            setLifterHeightToGrabStone();
+            observeQuarry(currentPose, motorList);
+            deliverSkyStonesToBuildingZone(currentPose, motorList, alliance);
+
+        } else if (activity == Pose.PostMoveActivity.RAISE_LIFTER_TO_EXTEND_ARM){
+            raiseLifterToExtendArm();
+        } else if (activity == Pose.PostMoveActivity.EXTEND_ARM_THEN_LOWER_LIFTER){
+            raiseLifterToExtendArm();
+            findLifterZero();
         }
+
     }
 
     public void lowerRake() {
@@ -660,6 +648,26 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
     }
 
 
+    protected void observeQuarry(TrackingPose currentPose, ArrayList<DcMotor> motorList) {
+        //Based on the Pose x coordinate, determine which stones are being viewed
+        QuarryStone firstStone;
+        QuarryStone secondStone;
+        if (currentPose.getX() < -55.0) {
+            //Near the end of the field
+            firstStone = QuarryStone.getQuarryStone(QuarryStone.StoneLocation.ZERO);
+            secondStone = QuarryStone.getQuarryStone(QuarryStone.StoneLocation.ONE);
+        } else if (currentPose.getX() < -39.0) {
+            firstStone = QuarryStone.getQuarryStone(QuarryStone.StoneLocation.TWO);
+            secondStone = QuarryStone.getQuarryStone(QuarryStone.StoneLocation.THREE);
+        } else {
+            firstStone = QuarryStone.getQuarryStone(QuarryStone.StoneLocation.FOUR);
+            secondStone = QuarryStone.getQuarryStone(QuarryStone.StoneLocation.FIVE);
+        }
+        recordQuarryObservations(firstStone, secondStone);
+        determineSkyStonePattern(firstStone, secondStone);
+
+    }
+
 
     /**
      * Method is intended to be a short pause to allow the vuforia object detector to record observations
@@ -667,9 +675,9 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
      * @param firstStone
      * @param secondStone
      */
-    protected void calculateSkyStonePosition(QuarryStone firstStone, QuarryStone secondStone){
+    protected void recordQuarryObservations(QuarryStone firstStone, QuarryStone secondStone){
         int numObservations = 0;
-        long timeout = 3000L;
+        long timeout = 4000L;
         StopWatch timer = new StopWatch();
 
         if (tfod != null) {
@@ -708,6 +716,205 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
                 numObservations++;
             }
         }
+    }
+
+    protected void determineSkyStonePattern(QuarryStone firstStone, QuarryStone secondStone){
+        /**
+         * Based on which stone is a SkyStone, generate the arraylist of stones
+         */
+        String logTag = "BTI_determineSkyStone.";
+        Log.d(logTag, "Determining Stone Pattern...");
+        QuarryStone.StoneLocation observedSkyStoneLocation;
+        //Based on which position the observed skyStone was, the pa
+        if (firstStone.isSkyStone()){
+            Log.d(logTag, "First stone is skystone " + firstStone.toString());
+            observedSkyStoneLocation = firstStone.getStoneLocation();
+        } else if (secondStone.isSkyStone()){
+            Log.d(logTag, "Second stone is skystone " + secondStone.toString());
+            observedSkyStoneLocation = secondStone.getStoneLocation();
+        } else {
+            //Based on which position the observed skyStone was, the third is inferred
+            Log.d(logTag, "Neither of the observed is skystone");
+            observedSkyStoneLocation = inferThirdPosition(firstStone);
+            Log.d(logTag, "Inferred SkyStone: " + observedSkyStoneLocation.toString());
+        }
+
+        //  Write the skyStones arraylist in QuarryStone static variable
+        QuarryStone.setSkyStones(observedSkyStoneLocation);
+
+        for (QuarryStone stone: QuarryStone.getQuarryStones()) {
+            Log.d(logTag, "Writing stone data " + stone.toString());
+        }
+
+        for (QuarryStone skyStone: QuarryStone.getSkyStones()){
+            Log.d(logTag, "SkyStone--> " + skyStone.toString());
+        }
+
+    }
+
+    protected QuarryStone.StoneLocation inferThirdPosition(QuarryStone firstStone){
+        QuarryStone.StoneLocation inferredLocation;
+        if(firstStone.getStoneLocation() == QuarryStone.StoneLocation.ZERO){
+            inferredLocation = QuarryStone.StoneLocation.TWO;
+        } else if (firstStone.getStoneLocation() == QuarryStone.StoneLocation.ONE){
+            inferredLocation = QuarryStone.StoneLocation.THREE;
+        } else if (firstStone.getStoneLocation() == QuarryStone.StoneLocation.TWO){
+            inferredLocation = QuarryStone.StoneLocation.FOUR;
+        } else if (firstStone.getStoneLocation() == QuarryStone.StoneLocation.THREE){
+            inferredLocation = QuarryStone.StoneLocation.FIVE;
+        } else if (firstStone.getStoneLocation() == QuarryStone.StoneLocation.FOUR){
+            inferredLocation = QuarryStone.StoneLocation.ZERO;
+        } else inferredLocation = QuarryStone.StoneLocation.FIVE;
+        return inferredLocation;
+    }
+
+    protected QuarryStone getTargetSkyStone(){
+        /**
+         * Returns a skyStone for transport to Building Zone
+         * If none were observed, it will pick a random one
+         */
+
+        String logTag = "BTI_getTargetSkyStone";
+        //Pick up the SkyStone
+        Log.d(logTag, "Retrieving skyStone coordinates, " + QuarryStone.getFoundSkyStoneCount()
+                + " skystones found");
+
+        ArrayList<QuarryStone> skyStones = QuarryStone.getSkyStones();
+        ListIterator<QuarryStone> quarryStoneListIterator = skyStones.listIterator();
+        QuarryStone skyStone;
+        QuarryStone.StoneLocation skyStoneLocation;
+
+        //If skystone is found, then retrieve the first item on the list,
+        //otherwise pick a random number
+        if (quarryStoneListIterator.hasNext()){
+            skyStone = quarryStoneListIterator.next();
+            skyStoneLocation = skyStone.getStoneLocation();
+            Log.d(logTag, "Going for stone: " + skyStone.toString());
+            Log.d(logTag, "Removing from list, currently with " + skyStones.size() + " items");
+
+            //Once the location is known, remove it from the list
+            quarryStoneListIterator.remove();
+            Log.d(logTag, "Item removed, now with " + skyStones.size() + " items");
+        } else {
+            int randomNum = ThreadLocalRandom.current().nextInt(1, 6);  //note, excludes block against wall
+            skyStoneLocation = QuarryStone.StoneLocation.getStoneLocation(randomNum);
+            skyStone = QuarryStone.getQuarryStone(skyStoneLocation);
+            Log.d(logTag, "Going for random stone: " + skyStone.toString());
+        }
+        return skyStone;
+    }
+
+    protected TrackingPose deliverSkyStonesToBuildingZone(TrackingPose endPose, ArrayList<DcMotor> motorList, Alliance alliance){
+        /**
+         * Drive from current location to the next SkyStone
+         */
+
+        String logTag = "BTI_deliverSkyStone...";
+
+        //Move the arm to correct height to grab stone
+        setLifterHeightToGrabStone();
+
+        //Retrieve a skystone from those observed.  If not observed, select random
+        QuarryStone skyStone = getTargetSkyStone();
+
+        //Travel to the SkyStone
+        Log.d(logTag, "Getting tracking pose to skystone");
+        TrackingPose currentPose = getTrackingPoseToSkyStone(skyStone, endPose, alliance);  //Set course
+        Log.d(logTag, "~~~~~~~~~~~~~Driving to skyStone");
+        endPose = travelToNextPose(currentPose, motorList);     //Actually drive
+        Log.d(logTag, "SkyStone travel completed, Location: " + currentPose.toString());
+
+        //**  Now perform the autoGrab function
+        autoGrabBlockNoMovement(motorList);
+
+        //Travel under foundation
+        Log.d(logTag, "Getting tracking pose across bridge");
+        currentPose = getTrackingPoseAcrossBridge(endPose);  //Set course
+        Log.d(logTag, "~~~~~~~~~~~~~Driving across bridge");
+        endPose = travelToNextPose(currentPose, motorList);     //Actually drive
+        Log.d(logTag, "Travel across bridge completed, Location: " + currentPose.toString());
+
+
+        //Travel to Foundation to dump stone
+        setLifterHeightToPlaceStone();  //raise lifter to place on foundation
+        Log.d(logTag, "Getting tracking pose to foundation");
+        currentPose = getTrackingPoseToFoundation(endPose);  //Set course
+        Log.d(logTag, "~~~~~~~~~~~~~Driving to foundation");
+        endPose = travelToNextPose(currentPose, motorList);     //Actually drive
+        Log.d(logTag, "Foundation travel completed, Location: " + currentPose.toString());
+        return endPose;
+    }
+
+
+    protected TrackingPose getTrackingPoseToSkyStone(QuarryStone skyStone, TrackingPose endPose, Alliance alliance){
+        String logTag = "BTI_getTrack.SkyStone.";
+        double stoneX = skyStone.getStoneLocation().getXStone();   //retrieve x dimension
+        double stoneY;
+        if(alliance == Alliance.RED){
+            stoneY = skyStone.getStoneLocation().getYStone()- offsetDistance;  //retrieve y dimension
+        } else {
+            stoneY = skyStone.getStoneLocation().getYStone()+ offsetDistance;  //retrieve y dimension
+        }
+        double stoneHeading = endPose.getTargetPose().getHeading();  //retrieve heading
+
+        //Create the beginning and end poses for the move
+        Pose startPose = new Pose(endPose.getX(), endPose.getY(), endPose.getHeading());
+        Pose skyStonePose = new Pose(stoneX,   stoneY , stoneHeading);
+        Log.d(logTag, "Creating tracking pose to SkyStone " + skyStone.toString());
+        //Create the tracking pose
+        return new TrackingPose(startPose, skyStonePose, endPose.getInitialGyroOffset());
+    }
+
+    protected TrackingPose getTrackingPoseAcrossBridge(TrackingPose endPose){
+        String logTag = "BTI_getTracking.Bridge.";
+        Log.d(logTag, "Creating tracking pose to en route to Foundation under bridge...");
+
+        //Create the beginning and end poses for the move
+
+        Pose startPose = new Pose(endPose.getX(), endPose.getY(), endPose.getHeading());
+        Pose acrossBridge = foundation.getSkyStoneDumpingPose(offsetDistance+5.0);
+        Log.d(logTag, "Creating tracking pose across bridge COMPLETED!");
+        return new TrackingPose(startPose, acrossBridge,endPose.getInitialGyroOffset());
+    }
+
+    protected TrackingPose getTrackingPoseToFoundation(TrackingPose endPose){
+        String logTag = "BTI_getTracking.Found.";
+        Log.d(logTag, "Creating tracking pose to Foundation...");
+
+        //Create the beginning and end poses for the move
+
+        Pose startPose = new Pose(endPose.getX(), endPose.getY(), endPose.getHeading());
+        Pose foundationPlate = foundation.getSkyStoneDumpingPose(offsetDistance);
+        Log.d(logTag, "Creating tracking pose to Foundation COMPLETED!");
+        return new TrackingPose(startPose, foundationPlate,endPose.getInitialGyroOffset());
+    }
+
+    protected TrackingPose getTrackingPoseToBridgePark(TrackingPose endPose, Alliance alliance){
+        String logTag = "BTI_getTracking.Park.";
+        Log.d(logTag, "Creating tracking pose to park under bridge...");
+
+        //Create the beginning and end poses for the move
+
+        Pose startPose = new Pose(endPose.getX(), endPose.getY(), endPose.getHeading());
+        Pose bridgePark = Pose.getBridgeParkPose(endPose, alliance);
+        Log.d(logTag, "Creating tracking pose to bridge park COMPLETED!");
+        return new TrackingPose(startPose, bridgePark,endPose.getInitialGyroOffset());
+    }
+
+
+    protected void autoGrabBlockNoMovement(ArrayList<DcMotor> motorList){
+        /**
+         * Automated routine to grab a block
+         * 1) raise the lifter
+         * 2) lower lifter while moving grabber wheel
+         * 3) stop wheel and lift for travel
+         */
+
+        //  1) raise the lifter
+        setLifterHeightToGrabStone();
+
+        //  2) Grab Stone (also lifts a little for travel
+        autoGrabStone(motorList);
 
     }
 

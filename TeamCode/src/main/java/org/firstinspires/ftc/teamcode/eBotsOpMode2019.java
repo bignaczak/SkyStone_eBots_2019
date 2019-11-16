@@ -48,10 +48,12 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
      //***************************************************************/
 
     //private Gyroscope imu;
+    //Drive Motors
     public DcMotor frontLeft;
     public DcMotor frontRight;
     public DcMotor backLeft;
     public DcMotor backRight;
+    private static ArrayList<DcMotor> driveMotors = new ArrayList<>();
 
     //Manipulation Motors
     public DcMotor latchMotor;
@@ -97,14 +99,14 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
 
     protected final Double ROTATE1_CLAW_FORWARD = 0.846;
     protected final Double ROTATE1_CLAW_90 = 0.319;
-    protected final Double ROTATE_CLAW_PACK = 0.015;
 
 
     protected final Double ROTATE2_CLAW_FORWARD = 0.798;
     protected final Double ROTATE2_CLAW_90RIGHT = 0.289;
 
-    protected final int blockHeightClicks = -475;
-    protected final int LIFTER_UPPER_LIMIT = (int) (4.5 * blockHeightClicks);
+    protected final int GRAB_HEIGHT_CLICKS = -600;
+    protected final int STONE_HEIGHT_CLICKS = -1200;
+    protected final int LIFTER_UPPER_LIMIT = (int) (GRAB_HEIGHT_CLICKS + 4.0 * STONE_HEIGHT_CLICKS);
 
 
     protected double foundationRakePosition;
@@ -124,7 +126,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
     protected double rotate1ClawIncrement = 0.015;
     protected double rotate2ClawIncrement = 0.015;
     protected double lifterUserInput = 0.0;
-    protected double lifterPowerLevel = 0.6;
+    protected double lifterPowerLevel = 0.8;
     protected double rollerGripperPowerLevel = 0.8;
 
     protected Boolean clawOpen = true;
@@ -155,6 +157,22 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         UP,
         DOWN
     }
+    /***************************************************************
+     //******    GETTERS AND SETTERS
+     //***************************************************************/
+    protected void setDriveMotors(ArrayList<DcMotor> motorList){
+
+        if(driveMotors.size() > 0) driveMotors.clear();
+
+        for (DcMotor m: motorList){
+            driveMotors.add(m);
+        }
+    }
+
+
+    /***************************************************************
+     //******    CLASS METHODS
+     //***************************************************************/
 
     //----------------------------------------------------------------------------------------------
     // Telemetry Configuration for gyro
@@ -317,6 +335,8 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         motorList.add(backLeft);
         motorList.add(backRight);
 
+        setDriveMotors(motorList);
+
         for (DcMotor m: motorList){
             m.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
             m.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
@@ -364,12 +384,13 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
          * Method to lower lifter until limit switch is contacted to set zero point
          */
         StopWatch timer = new StopWatch();
-        Long timeout = 2000L;
+        Long timeout = 3000L;
         lifter.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        lifter.setPower(0.3);   //
+        lifter.setPower(0.6);   //
         timer.startTimer();
         while(opModeIsActive() && !lifterAtBottom.getState()
                 && timer.getElapsedTimeMillis()<timeout){
+            processDriverControls();
         }
         lifter.setPower(0.0);
         lifter.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
@@ -472,18 +493,327 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
 
 
         protected void raiseLifterToExtendArm(){
-        lifter.setTargetPosition(-1500);
-        lifter.setPower(lifterPowerLevel);
+            String debugTag = "BTI_raiseLifter.Ext.Arm";
+            Log.d(debugTag, "Start lifting Arm...");
+            StopWatch timer = new StopWatch();
+            long timeOut = 1500L;
+            int startPosition = lifter.getCurrentPosition();
 
-        StopWatch stopWatch = new StopWatch();
-        while(stopWatch.getElapsedTimeMillis()<1000){
-            //RAISING lifter
-        }
+            int targetClickIncrement = (int) (GRAB_HEIGHT_CLICKS / 2);  //Note GRAB_HEIGHT_CLICKS is negative
+            int targetPosition = startPosition + targetClickIncrement;
+            boolean liftAtUpperLimit = (lifter.getCurrentPosition() <= LIFTER_UPPER_LIMIT) ? true : false;
+            boolean targetPositionReached = (lifter.getCurrentPosition() <= targetPosition) ? true : false;
+            boolean operationTimedOut = (timer.getElapsedTimeMillis() >= timeOut) ? true : false;
+            moveLifter(LifterDirection.UP);
+
+            while(opModeIsActive() && !targetPositionReached && !operationTimedOut && !liftAtUpperLimit){
+                //Lift the arm to extend
+                liftAtUpperLimit = (lifter.getCurrentPosition() <= LIFTER_UPPER_LIMIT) ? true : false;
+                targetPositionReached = (lifter.getCurrentPosition() <= targetPosition) ? true : false;
+                operationTimedOut = (timer.getElapsedTimeMillis() >= timeOut) ? true : false;
+                processDriverControls();
+            }
+
+            //Now hold the position by setting back to run to position
+            holdLifterAtCurrentPosition();
+
+            Log.d(debugTag, "Arm lifted in " + timer.toString());
+
     }
 
     protected void setLifterHeightToGrabStone(){
-        lifter.setTargetPosition(blockHeightClicks);
+        lifter.setTargetPosition(GRAB_HEIGHT_CLICKS);
         lifter.setPower(lifterPowerLevel);
+    }
+
+    protected void setLifterHeightToPlaceStone(){
+        setLifterHeightToPlaceStone(1);
+    }
+
+    protected void setLifterHeightToPlaceStone(int level){
+        //height of foundation is about 1/2 of block height
+        int baseHeight = (int) (1.5 * GRAB_HEIGHT_CLICKS);
+        int targetHeight = baseHeight + (int) ((level-1) * GRAB_HEIGHT_CLICKS);
+        lifter.setTargetPosition(targetHeight);
+        lifter.setPower(lifterPowerLevel);
+    }
+
+
+
+
+    protected void autoGrabStone(ArrayList<DcMotor> motorList){
+        /**
+         * Automated routine to grab a block
+         * 1) Stop all drive motors
+         * 2) lower lifter while moving grabber wheel
+         * 3) Hold lifter position when hit limit switch
+         * 4) pulse the rollerGripper
+         *
+         */
+        Integer lifterHeightDrive = -150;
+        Long pulseTimeOut = 500L;
+        Long timeout = 800L;
+        StopWatch timer = new StopWatch();
+
+        //  1) Stop all drive motors
+        stopMotors(motorList);
+
+        //  2) lower lifter while moving grabber wheel
+        //  Start roller
+        rollerGripper.setPower(rollerGripperPowerLevel/2);       //half speed
+
+        lifter.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        lifter.setPower(0.3);   //
+        timer.startTimer();
+        while(opModeIsActive() && !lifterAtBottom.getState()
+                && timer.getElapsedTimeMillis()<timeout){
+                //Lower motor
+        }
+
+        //  3) Hold lifter position when hit limit switch
+        holdLifterAtCurrentPosition();
+
+        //  4) pulse the rollerGripper
+        timer.startTimer();
+        while (opModeIsActive() && timer.getElapsedTimeMillis() < pulseTimeOut){
+            //roll the gripper for a while
+            rollerGripper.setPower(rollerGripperPowerLevel);
+        }
+
+        //  4) stop wheel and lift for travel
+        rollerGripper.setPower(0.0);
+        lifter.setTargetPosition(lifterHeightDrive);
+    }
+
+    protected void autoReleaseStone(ArrayList<DcMotor> motorList){
+        /**
+         * 0) Stop all motors
+         * 1) Lift Arm a little more than a block
+         * 2) Reverse rollerGripper motor to release block
+         */
+        //  0) Stop all motor
+        stopMotors(motorList);
+
+        //  1) Lift Arm a little more than a block to make sure you clear when moving away
+
+        int lifterAutoReleaseIncrement = (int) (STONE_HEIGHT_CLICKS * 1.15);
+        final Double rollerGripperSpeed = 0.35;  //slow release speed
+        final Double liftPowerLevelRelease = 0.25;
+        Integer currentLifterPositionError;
+        Long timeout = 1000L;
+
+        StopWatch timer = new StopWatch();
+        timer.startTimer();
+
+
+        lifterPosition = lifter.getCurrentPosition() + lifterAutoReleaseIncrement;
+        lifter.setTargetPosition(lifterPosition);
+        lifter.setPower(liftPowerLevelRelease);  //Try and raise slowly
+        currentLifterPositionError = lifterPosition - lifter.getCurrentPosition();
+
+        //  2) Reverse rollerGripper motor to release block
+        while (opModeIsActive() && Math.abs(currentLifterPositionError) > 50
+                && timer.getElapsedTimeMillis() < timeout){
+            rollerGripper.setPower(rollerGripperSpeed);
+            currentLifterPositionError = lifterPosition - lifter.getCurrentPosition();
+        }
+
+        //  Set power level back
+        lifter.setPower(lifterPowerLevel);
+    }
+
+    protected void processDriverControls(){
+        //This first group is for basic navigation
+        double driveX;      //Left or right movement
+        double driveY;      //Forward or back movement
+        double spin;        //Rotation
+
+        //These are calculated based on the stick inputs
+        double r;       //length of radius for driveX and driveY
+        double robotAngle;      //adjust of angle to account for mecanum drive
+
+        //This are used to refine the input for driver control
+        double fineAdjust;                          //Used for super-slow mode
+        final double fineAdjustThreshold = 0.3;    //Avoid trivial amounts of speed reduction with threshold value
+        final double fineAdjustMaxReduction = 0.75; //Don't allow drive to be fully negated
+        boolean fineAdjustOn = false;               //Flag if fine adjust is activated
+        boolean speedBoostOn = false;               //Maximize motor drive speeds if pressed
+        final double motorThreshold=0.10;
+        double spinScaleFactor = 0.4;
+
+        //These values get calculated by calculateDriveVector function
+        double[] driveValues = new double[4];  //Array of values for the motor power levels
+        double maxValue;                        //Identify ax value in driveValues array
+
+
+        //GAMEPAD1 INPUTS
+        //----------------------------------------
+        //Get the drive inputs from the controller
+        //  [LEFT STICK]   --> Direction and Speed
+        //  [RIGHT STICK]  --> X Direction dictates spin rate to rotate about robot center
+        //  [LEFT TRIGGER] --> Variable reduction in robot speed to allow for fine position adjustment
+        //  [RIGHT BUMPER] --> Speed boost, maximized motor drive speed
+
+        driveX = gamepad1.left_stick_x;        //Read left stick position for left/right motion
+        driveY = -gamepad1.left_stick_y;       //Read left stick position for forward/reverse Motion
+        spin = gamepad1.right_stick_x * spinScaleFactor; //This is used to determine how to spin the robot
+        fineAdjust = gamepad1.left_trigger;     //Pull to slow motion
+        speedBoostOn = gamepad1.right_bumper;   //Push to maximize motor drives
+
+        //r gives the left stick's offset from 0 position by calculating hypotenuse of x and y offset
+        r = Math.hypot(driveX, driveY);
+
+        //Robot angle calculates the angle (in radians) and then subtracts pi/4 (45 degrees) from it
+        //The 45 degree shift aligns the mecanum vectors for drive
+        robotAngle = Math.atan2(driveY, driveX) - Math.PI / 4;
+        calculateDriveVector(r, robotAngle, spin, driveValues);     //Calculate motor drive speeds
+
+        //Now allow for fine maneuvering by allowing a slow mode when pushing trigger
+        //Trigger is an analog input between 0-1, so it allows for variable adjustment of speed
+        //Now scale the drive values based on the level of the trigger
+        //We don't want to trigger to allow the joystick to be completely negated
+        //And we don't want trivial amounts of speed reduction
+        //Initialized variable above Set threshold value to ~0.2 (fineAdjustThreshold)
+        // and only allow 80% reduction of speed (fineAdjustMaxReduction)
+        if (fineAdjust >= fineAdjustThreshold) {
+            fineAdjustOn = true;
+            fineAdjust *= fineAdjustMaxReduction;
+        } else {
+            fineAdjustOn = false;
+            fineAdjust = 0;
+        }
+        fineAdjust = 1 - fineAdjust;
+
+        if (fineAdjustOn) scaleDrive(fineAdjust, driveValues);    //Apply Fine Adjust
+
+
+        //Now maximize speed by applying a speed boost
+        //The drive calculation sometimes doesn't set the peak drive to 1, this corrects that
+        if (!fineAdjustOn & speedBoostOn) {      //Fine Adjust mode takes precedent over speed boost
+            maxValue = findMaxAbsValue(driveValues);  //See what the max drive value is set to
+            if (maxValue < 1 & maxValue > 0)
+                scaleDrive(1 / maxValue, driveValues);  //If max value isn't 1, Scale the values up so max is 1
+        }
+
+        //Now actually assign the calculated drive values to the motors in motorList
+        int i = 0;
+        for (DcMotor m : driveMotors) {
+            m.setPower(driveValues[i]);
+            i++;
+        }
+    }
+
+    protected void processManualManipControls(){
+        //GAMEPAD2 INPUTS
+        //----------------------------------------
+        //Y - raise foundation rake (has override)
+        //A - lower foundation rake (has override)
+        //dpad_Down - Set lifter height to grab stone
+        //left Stick - lifter up and down
+        //left_bumper + right_stick_y - Adjust lifter speed
+
+        //***************************************************************
+        //Initialize the variables that are being used in the main loop
+        //***************************************************************
+        StopWatch rakeTimer = new StopWatch();
+        StopWatch lifterTimer = new StopWatch();
+
+
+        //----------RAKE INPUTS----------------
+        if (gamepad2.y && !gamepad2.left_bumper){
+            foundationRakePosition = RAKE_UP;
+            rakeTimer.startTimer();
+            foundationRake.setPosition(foundationRakePosition);
+
+        } else if (gamepad2.a && !gamepad2.left_bumper){
+            foundationRakePosition = RAKE_DOWN;
+            rakeTimer.startTimer();
+            foundationRake.setPosition(foundationRakePosition);
+
+            //these 2 are override conditions
+        } else if(gamepad2.a && gamepad2.left_bumper) {
+            if (foundationRakePosition < 1.0) foundationRakePosition += rakeIncrement;
+            rakeTimer.startTimer();
+            foundationRake.setPosition(foundationRakePosition);
+        } else if(gamepad2.y && gamepad2.left_bumper) {
+            if (foundationRakePosition > 0.0) foundationRakePosition -= rakeIncrement;
+            rakeTimer.startTimer();
+            foundationRake.setPosition(foundationRakePosition);
+        } else if (rakeTimer.getElapsedTimeMillis()>timerLimit){
+        }
+
+        //----------rollerGripper INPUTS----------------
+        if (gamepad2.right_bumper && !gamepad2.left_bumper) {
+            //----------Ingest----------------
+            rollerGripper.setPower(-rollerGripperPowerLevel);
+        } else if (gamepad2.right_trigger > 0.3 && !gamepad2.left_bumper) {
+            //----------release----------------
+            rollerGripper.setPower(rollerGripperPowerLevel);
+        } else rollerGripper.setPower(0.0);
+
+
+        //----------Lifter INPUTS----------------
+        // INTENDED FUNCTION
+        //  1) Move down if left stick pushing down and not at limit
+        //  2) Move up if left stick pushing up and not at limit
+        //  3) Hold position if not moving stick
+        lifterUserInput = -gamepad2.left_stick_y;   //change sign for readability
+
+        if (lifterUserInput < -0.3){
+            //This is for going down
+            //  1) Move down if left stick pushing down and not at limit
+            moveLifter(LifterDirection.DOWN);
+
+        } else if (lifterUserInput > 0.3){
+            //This is for going up
+            //  2) Move up if left stick pushing up and not at limit
+            moveLifter(LifterDirection.UP);
+
+        } else if(gamepad2.dpad_down) {
+            setLifterHeightToGrabStone();
+        }else if (Math.abs(lifterUserInput) <= 0.3) {
+            //  3) Hold position if not moving stick
+            holdLifterAtCurrentPosition();
+        }
+
+        //----------Adjust lifter speed----------------
+        if (gamepad2.left_bumper && gamepad2.right_stick_y < -0.3){
+            lifterPowerLevel += 0.05;
+            if(lifterPowerLevel>1.0) lifterPowerLevel = 1.0;
+            lifter.setPower(lifterPowerLevel);
+            lifterTimer.startTimer();
+        } else if (gamepad2.left_bumper && gamepad2.right_stick_y > 0.3) {
+            lifterPowerLevel -= 0.05;
+            if(lifterPowerLevel<0.0) lifterPowerLevel = 0.0;
+            lifter.setPower(lifterPowerLevel);
+            lifterTimer.startTimer();
+        }
+
+    }
+    protected void processAutomatedManipControls(){
+        //GAMEPAD2 INPUTS
+        //----------------------------------------
+        //Y - raise foundation rake (has override)
+        //A - lower foundation rake (has override)
+        //dpad_Down - Set lifter height to grab stone
+        //left Stick - lifter up and down
+        //***************************************************************
+        //Initialize the variables that are being used in the main loop
+        //***************************************************************
+        StopWatch rakeTimer = new StopWatch();
+        StopWatch lifterTimer = new StopWatch();
+        Boolean rakeBusy = false;
+        Boolean lifterBusy = false;
+
+        //----------rollerGripper INPUTS----------------
+        if(gamepad2.left_bumper && gamepad2.left_trigger > 0.3){
+            //----------Initiate AutoGrab----------------
+            autoGrabStone(driveMotors);
+        } else if(gamepad2.left_bumper && gamepad2.right_trigger > 0.3){
+            //----------Initiate AutoRelease----------------
+            autoReleaseStone(driveMotors);
+        }
+        else rollerGripper.setPower(0.0);
     }
 
 
@@ -629,12 +959,15 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
     public void twistToAngle(double spinAngleInDegrees, double speed, ArrayList<DcMotor> motors){
         //Note this logic is demoed in the "Gyro" tab of "Rover Time Trials" Google Sheets file
         //All angles in this routine are in DEGREES
+        String logTag = "BTI_twistToAngle";
+        boolean debugOn = true;
+        if (debugOn) Log.d(logTag, "Entering twistToAngle...");
         boolean currentHeadingModifier = false;  //Used as a flag if the target angle passes the 180 point
         double overFlowAngle = 0;
         double adjustedAngle = getGyroReadingDegrees();  //Adjusted angle is to handle crossover of sign at 180 degrees
         double angleBufferForPrecision = 35;
-        double fullSpeed = 0.5;
-        double throttleDownSpeed = 0.2;
+        double fullSpeed = speed;
+        double throttleDownSpeed = 0.15;
         double slopeForThrottleDown = (fullSpeed-throttleDownSpeed)/angleBufferForPrecision;
 
         //Create loop so robot spins until target angle is achieved
@@ -813,14 +1146,15 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         // This command calculates the turn inputs for twistToAngle function and calls it
         // Angles in this routine are in DEGREES (unless otherwise noted)
         String debugTag = "BTI_turnToFieldHeading";
-        Log.d(debugTag, "_______Start of turnToFieldHeading___________");
+        boolean debugOn = true;
+        if (debugOn) Log.d(debugTag, "_______Start of turnToFieldHeading___________");
         //requiredTurnAngle is in DEGREES when calculated using TrackingPose, also FO sign
         double requiredTurnAngle = checkHeadingVersusTarget(trackingPose);  //How many angles must turn
-        Log.d(debugTag, "required turn calculated: " + requiredTurnAngle);
+        if (debugOn) Log.d(debugTag, "required turn calculated: " + requiredTurnAngle);
 
         //must reverse sign for twistToAngle routine (too scared to fix)
         twistToAngle(-requiredTurnAngle,speed, motors);
-        Log.d(debugTag, "Completed twistToAngle");
+        if (debugOn) Log.d(debugTag, "Completed twistToAngle");
 
         //Note:  turnError is initially returned in Radians
         double turnError = checkHeadingVersusTarget(trackingPose);

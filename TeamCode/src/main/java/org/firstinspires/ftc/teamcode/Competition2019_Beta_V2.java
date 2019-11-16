@@ -64,25 +64,24 @@ public class Competition2019_Beta_V2 extends eBotsOpMode2019 {
         //Initialize Manipulator Arm variables
         //***************************************************************
         initializeManipMotors();
-        lifterLimit1 = hardwareMap.get(DigitalChannel.class, "lifterLimit1");
-        lifterAtBottom = hardwareMap.get(DigitalChannel.class, "lifterLimit2");
-
-
 
         //***************************************************************
+        //Initialize Limit Switches
+        //***************************************************************
+        initializeLimitSwitches();
+        /*
+         lifterLimit1 = hardwareMap.get(DigitalChannel.class, "lifterLimit1");
+        lifterAtBottom = hardwareMap.get(DigitalChannel.class, "lifterLimit2");
+
+         */
+
+            //***************************************************************
         //Initialize the variables that are being used in the main loop
         //***************************************************************
         StopWatch rakeTimer = new StopWatch();
-        StopWatch rotate1ClawTimer = new StopWatch();
-        StopWatch rotate2ClawTimer = new StopWatch();
-        StopWatch clawTimer = new StopWatch();
         StopWatch lifterTimer = new StopWatch();
         Boolean rakeBusy = false;
-        Boolean rotate1ClawBusy = false;
-        Boolean rotate2ClawBusy = false;
-        Boolean clawBusy = false;
         Boolean lifterBusy = false;
-        Boolean holdLifterPosition = false;
 
 
         //***************************************************************
@@ -204,10 +203,10 @@ public class Competition2019_Beta_V2 extends eBotsOpMode2019 {
                 rollerGripper.setPower(rollerGripperPowerLevel);
             } else if(gamepad2.left_bumper && gamepad2.left_trigger > 0.3){
                 //----------Initiate AutoGrab----------------
-                autoGrabBlock(motorList);
+                autoGrabStone(motorList);
             } else if(gamepad2.left_bumper && gamepad2.right_trigger > 0.3){
                 //----------Initiate AutoRelease----------------
-                autoReleaseBlock(motorList);
+                autoReleaseStone(motorList);
             }
             else rollerGripper.setPower(0.0);
 
@@ -258,88 +257,7 @@ public class Competition2019_Beta_V2 extends eBotsOpMode2019 {
         }
     }
 
-    private void autoGrabBlock(ArrayList<DcMotor> motorList){
-        /**
-         * Automated routine to grab a block
-         * 1) Stop all drive motors
-         * 2) lower lifter while moving grabber wheel
-         * 3) Hold lifter position when hit limit switch
-         * 4) pulse the rollerGripper
-         *
-         */
-        Integer lifterHeightDrive = -150;
-        Long pulseTimeOut = 500L;
-        Long timeout = 800L;
-        StopWatch timer = new StopWatch();
 
-        //  1) Stop all drive motors
-        stopMotors(motorList);
-
-        //  2) lower lifter while moving grabber wheel
-        //  Start roller
-        rollerGripper.setPower(rollerGripperPowerLevel/2);       //half speed
-
-        lifter.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        lifter.setPower(0.3);   //
-        timer.startTimer();
-        while(opModeIsActive() && !lifterAtBottom.getState()
-                && timer.getElapsedTimeMillis()<timeout){
-
-            writeAutoGrabTelemetry("Lowering to grab block");
-        }
-
-        //  3) Hold lifter position when hit limit switch
-        holdLifterAtCurrentPosition();
-
-        //  4) pulse the rollerGripper
-        timer.startTimer();
-        while (opModeIsActive() && timer.getElapsedTimeMillis() < pulseTimeOut){
-            //roll the gripper for a while
-            rollerGripper.setPower(rollerGripperPowerLevel);
-        }
-
-        //  4) stop wheel and lift for travel
-        rollerGripper.setPower(0.0);
-        lifter.setTargetPosition(lifterHeightDrive);
-    }
-
-    private void autoReleaseBlock(ArrayList<DcMotor> motorList){
-        /**
-         * 0) Stop all motors
-         * 1) Lift Arm a little more than a block
-         * 2) Reverse rollerGripper motor to release block
-         */
-        //  0) Stop all motor
-        stopMotors(motorList);
-
-        //  1) Lift Arm a little more than a block to make sure you clear when moving away
-
-        int lifterAutoReleaseIncrement = (int) (blockHeightClicks * 1.5);
-        final Double rollerGripperSpeed = 0.35;  //slow release speed
-        final Double liftPowerLevelRelease = 0.25;
-        Integer currentLifterPositionError;
-        Long timeout = 1000L;
-
-        StopWatch timer = new StopWatch();
-        timer.startTimer();
-
-
-        lifterPosition = lifter.getCurrentPosition() + lifterAutoReleaseIncrement;
-        lifter.setTargetPosition(lifterPosition);
-        lifter.setPower(liftPowerLevelRelease);  //Try and raise slowly
-        currentLifterPositionError = lifterPosition - lifter.getCurrentPosition();
-
-        //  2) Reverse rollerGripper motor to release block
-        while (opModeIsActive() && Math.abs(currentLifterPositionError) > 50
-                && timer.getElapsedTimeMillis() < timeout){
-            rollerGripper.setPower(rollerGripperSpeed);
-            writeAutoGrabTelemetry("Releasing Block");
-            currentLifterPositionError = lifterPosition - lifter.getCurrentPosition();
-        }
-
-        //  Set power level back
-        lifter.setPower(lifterPowerLevel);
-    }
 
     private void writeTelemetry(){
         telemetry.addData("Lifter Target", lifter.getTargetPosition());

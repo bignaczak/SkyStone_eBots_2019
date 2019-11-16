@@ -41,12 +41,20 @@ public class TrackingPose extends Pose {
         this.setX(startingPose.getX());
         this.setY(startingPose.getY());
         this.setHeading(startingPose.getHeading());
-        this.targetPose = targetPose;
+        //Protect for the null condition of target pose
+        if (targetPose != null) {
+            //  if not null, then set input argument
+            this.targetPose = targetPose;
+        } else {
+            //  if null, set the target pose equal to the starting pose
+            this.targetPose = startingPose;
+        }
         this.headingErrorLocked = false;
         this.poseError = new PoseError(this);
         this.travelDirection = this.getHeadingError();
-        this.setPostMoveActivity(PostMoveActivity.NONE);
+        this.setPostMoveActivity(this.targetPose.getPostMoveActivity());  //Set postmove activity same as target pose
     }
+
     public TrackingPose(Pose startingPose, Pose targetPose, double previousInitialGyroOffset) {
         this(startingPose, targetPose);
         this.initialGyroOffset = previousInitialGyroOffset;

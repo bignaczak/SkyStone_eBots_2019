@@ -61,9 +61,15 @@ public class Competition2019_Beta extends eBotsOpMode2019 {
         //Initialize Manipulator Arm variables
         //***************************************************************
         initializeManipMotors();
+
+        //***************************************************************
+        //Initialize Limit Switches
+        //***************************************************************
+        initializeLimitSwitches();
+        /*  replaced by above routine
         lifterLimit1 = hardwareMap.get(DigitalChannel.class, "lifterLimit1");
         lifterAtBottom = hardwareMap.get(DigitalChannel.class, "lifterLimit2");
-
+        */
 
 
         //***************************************************************
@@ -72,12 +78,10 @@ public class Competition2019_Beta extends eBotsOpMode2019 {
         StopWatch rakeTimer = new StopWatch();
         StopWatch rotate1ClawTimer = new StopWatch();
         StopWatch rotate2ClawTimer = new StopWatch();
-        StopWatch clawTimer = new StopWatch();
         StopWatch lifterTimer = new StopWatch();
         Boolean rakeBusy = false;
         Boolean rotate1ClawBusy = false;
         Boolean rotate2ClawBusy = false;
-        Boolean clawBusy = false;
         Boolean lifterBusy = false;
         Boolean holdLifterPosition = false;
 
@@ -200,60 +204,6 @@ public class Competition2019_Beta extends eBotsOpMode2019 {
             }
 
 
-            //----------ROTATE JOINT 1 INPUTS----------------
-            if (!rotate1ClawBusy && gamepad2.dpad_right && !gamepad2.left_bumper) {
-                rotate1ClawPosition = ROTATE1_CLAW_FORWARD;
-                rotate1ClawTimer.startTimer();
-                rotate1ClawBusy = true;
-                rotate1ClawServo.setPosition(rotate1ClawPosition);
-            } else if(!rotate1ClawBusy && gamepad2.dpad_left && !gamepad2.left_bumper){
-                rotate1ClawPosition = ROTATE1_CLAW_90;
-                rotate1ClawTimer.startTimer();
-                rotate1ClawBusy = true;
-                rotate1ClawServo.setPosition(rotate1ClawPosition);
-
-                //these 2 are override conditions
-            } else if(!rotate1ClawBusy && gamepad2.dpad_right && gamepad2.left_bumper){
-                if (rotate1ClawPosition < 1.0) rotate1ClawPosition += rotate1ClawIncrement;
-                rotate1ClawTimer.startTimer();
-                rotate1ClawBusy = true;
-                rotate1ClawServo.setPosition(rotate1ClawPosition);
-            } else if(!rotate1ClawBusy && gamepad2.dpad_left && gamepad2.left_bumper){
-                if (rotate1ClawPosition > 0.0) rotate1ClawPosition -= rotate1ClawIncrement;
-                rotate1ClawTimer.startTimer();
-                rotate1ClawBusy = true;
-                rotate1ClawServo.setPosition(rotate1ClawPosition);
-            } else if (rotate1ClawBusy && rotate1ClawTimer.getElapsedTimeMillis()>timerLimit){
-                rotate1ClawBusy = false;
-            }
-
-            //----------ROTATE JOINT 2 INPUTS----------------
-            if (!rotate2ClawBusy && gamepad2.x && !gamepad2.left_bumper) {
-                rotate2ClawPosition = ROTATE2_CLAW_FORWARD;
-                rotate2ClawTimer.startTimer();
-                rotate2ClawBusy = true;
-                rotate2ClawServo.setPosition(rotate2ClawPosition);
-            } else if(!rotate2ClawBusy && gamepad2.b && !gamepad2.left_bumper){
-                rotate2ClawPosition = ROTATE2_CLAW_90RIGHT;
-                rotate2ClawTimer.startTimer();
-                rotate2ClawBusy = true;
-                rotate2ClawServo.setPosition(rotate2ClawPosition);
-
-
-            } else if(!rotate2ClawBusy && gamepad2.x && gamepad2.left_bumper){
-                if (rotate2ClawPosition < 1.0) rotate2ClawPosition += rotate2ClawIncrement;
-                rotate2ClawTimer.startTimer();
-                rotate2ClawBusy = true;
-                rotate2ClawServo.setPosition(rotate2ClawPosition);
-            } else if(!rotate2ClawBusy && gamepad2.b && gamepad2.left_bumper){
-                if (rotate2ClawPosition>0.0) rotate2ClawPosition -= rotate2ClawIncrement;
-                rotate2ClawTimer.startTimer();
-                rotate2ClawBusy = true;
-                rotate2ClawServo.setPosition(rotate2ClawPosition);
-            } else if (rotate2ClawBusy && rotate2ClawTimer.getElapsedTimeMillis()>timerLimit){
-                rotate2ClawBusy = false;
-            }
-
             //----------rollerGripper INPUTS----------------
             if (gamepad2.right_bumper && !gamepad2.left_bumper) {
                 rollerGripper.setPower(0.5);
@@ -261,15 +211,6 @@ public class Competition2019_Beta extends eBotsOpMode2019 {
                 rollerGripper.setPower(-0.5);
             } else rollerGripper.setPower(0.0);
 
-
-            //----------EXTEND ARM INPUTS----------------
-            if (gamepad2.dpad_up) {
-                extendArm.setPower(0.3);
-            } else if(gamepad2.dpad_down) {
-                extendArm.setPower(-0.3);
-            } else {
-                extendArm.setPower(0.0);
-            }
 
             //----------Lifter INPUTS----------------
 
@@ -318,11 +259,12 @@ public class Competition2019_Beta extends eBotsOpMode2019 {
 
             //----------Initiate AutoGrab----------------
             if (gamepad2.left_bumper && gamepad2.left_trigger > 0.3){
-                autoGrabBlock(motorList);
+                autoGrabStone(motorList);
             }
 
             if (gamepad2.left_bumper && gamepad2.right_trigger > 0.3){
-                autoReleaseBlock(motorList);
+                autoReleaseStone(motorList);
+
             }
 
             writeTelemetry();
@@ -332,7 +274,8 @@ public class Competition2019_Beta extends eBotsOpMode2019 {
 
     }
 
-    private void autoGrabBlock(ArrayList<DcMotor> motorList){
+    @Override
+    protected void autoGrabStone(ArrayList<DcMotor> motorList){
         /**
          * Automated routine to grab a block
          * 1) raise the lifter
@@ -340,7 +283,7 @@ public class Competition2019_Beta extends eBotsOpMode2019 {
          * 3) lower lifter while moving grabber wheel
          * 4) stop wheel and lift for travel
          */
-        Integer lifterHeightApproach = blockHeightClicks;
+        Integer lifterHeightApproach = GRAB_HEIGHT_CLICKS;
         Integer lifterHeightGrab = 0;
         Integer lifterHeightDrive = -150;
         Integer driveTime = 350;
@@ -417,6 +360,7 @@ public class Competition2019_Beta extends eBotsOpMode2019 {
 
     }
 
+
     private void pulseRollerGripper(Long pulseTimeOut, Double rollerGripperPulseSpeed){
         StopWatch pulseTimer = new StopWatch();
         pulseTimer.startTimer();
@@ -447,50 +391,6 @@ public class Competition2019_Beta extends eBotsOpMode2019 {
 
     }
 
-    private void autoReleaseBlock(ArrayList<DcMotor> motorList){
-        /**
-         * 1) Lift Arm
-         * 2) Pulse rollerGripper motor to release block
-         */
-
-        Integer lifterAutoReleaseIncrement = blockHeightClicks;
-        final Double rollerGripperSpeed = 0.35;  //slow release speed
-        final Double liftPowerLevelRelease = 0.25;
-        Double rollerGripperPulseSpeed;
-        Integer currentLifterPositionError;
-        Long pulseTimeOut = 500L;
-        Long timeout = 1400L;
-
-        StopWatch timer = new StopWatch();
-        timer.startTimer();
-
-
-        lifterPosition = lifter.getCurrentPosition() + lifterAutoReleaseIncrement;
-        lifter.setTargetPosition(lifterPosition);
-        lifter.setPower(liftPowerLevelRelease);  //Try and raise slowly
-        Boolean gripperPowerOn = true;
-        currentLifterPositionError = lifterPosition - lifter.getCurrentPosition();
-
-        while (opModeIsActive() && Math.abs(currentLifterPositionError) > 50
-                && timer.getElapsedTimeMillis() < timeout){
-            rollerGripper.setPower(rollerGripperSpeed);
-            /*
-            if (gripperPowerOn) {
-                rollerGripperPulseSpeed = rollerGripperSpeed;
-            } else rollerGripperPulseSpeed = 0.0;
-            pulseRollerGripper(pulseTimeOut, rollerGripperPulseSpeed);
-            */
-            writeAutoGrabTelemetry("Releasing Block");
-
-            currentLifterPositionError = lifterPosition - lifter.getCurrentPosition();
-            gripperPowerOn = !gripperPowerOn;
-        }
-
-        //  Set power level back
-        lifter.setPower(lifterPowerLevel);
-
-
-    }
 
     private void writeTelemetry(){
         telemetry.addData("Lifter Target", lifter.getTargetPosition());

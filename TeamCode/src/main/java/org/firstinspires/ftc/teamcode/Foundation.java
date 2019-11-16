@@ -40,4 +40,5 @@ public class Foundation {
     public Pose getSkyStoneDumpingPose(Double offsetDistance){
         return new Pose(xCenter-height/2.0 - offsetDistance, yCenter - width/2.0, orientationDegrees);
     }
+
 }

@@ -2,6 +2,7 @@ package org.firstinspires.ftc.teamcode;
 
 
 import android.util.Log;
+import android.widget.TabHost;
 
 import java.util.ArrayList;
 
@@ -13,7 +14,7 @@ public class QuarryStone {
      //******    STATIC VARIABLES
      //****************************************************************/
     private static ArrayList<QuarryStone> quarryStones = new ArrayList<>();
-
+    private static ArrayList<QuarryStone> skyStones = new ArrayList<>();
 
      /****************************************************************
      //******    CLASS VARIABLES
@@ -22,7 +23,6 @@ public class QuarryStone {
     private Integer numObservations;
     private Integer numIdSkyStone;
     private StoneLocation stoneLocation;
-
 
     /***************************************************************
      //******    ENUMERATIONS
@@ -63,6 +63,7 @@ public class QuarryStone {
             return returnLocation;
         }
     }
+
     /***************************************************************
      //******    CONSTRUCTORS
      //***************************************************************/
@@ -122,24 +123,49 @@ public class QuarryStone {
 
 
     public static ArrayList<QuarryStone> getSkyStones(){
-
-        ArrayList<QuarryStone> skyStones = new ArrayList<>();   //Create list to contain SkyStones
-        if (skyStones.size() > 0) skyStones.clear();            //Make sure it's empty (from earlier issue with encoders)
-        for (QuarryStone stone: quarryStones){
-            if (stone.isSkyStone() == true){
-                skyStones.add(stone);
-            }
-        }
-        //Make sure that only returning 2 skyStones
-        if (skyStones.size() > 2) {
-            //  First compare probability, then compare num observations
-
-        }
         return skyStones;
     }
 
+    public static void setSkyStones(StoneLocation observedSkyStoneLocation){
+        /**
+         * Create the arraylist of skyStones based on the obsevation of the quarry
+         */
+        String logTag = "BTI_setSkyStones";
+        Log.d(logTag, "Preparing to write skystones...");
+        QuarryStone observedSkyStone = getQuarryStone(observedSkyStoneLocation);
+        Log.d(logTag, "Observed stone " + observedSkyStone.toString());
+        QuarryStone otherSkyStone;
+
+        //  Empty the array if anything exists
+        if (skyStones.size()>0) skyStones.clear();
+
+        if(observedSkyStoneLocation == StoneLocation.ZERO) {
+            otherSkyStone = getQuarryStone(StoneLocation.THREE);
+        } else if (observedSkyStoneLocation == StoneLocation.ONE){
+            otherSkyStone = getQuarryStone(StoneLocation.FOUR);
+        } else if (observedSkyStoneLocation == StoneLocation.TWO) {
+            otherSkyStone = getQuarryStone(StoneLocation.FIVE);
+        } else if (observedSkyStoneLocation == StoneLocation.THREE){
+            otherSkyStone = getQuarryStone(StoneLocation.ZERO);
+        } else if (observedSkyStoneLocation == StoneLocation.FOUR){
+            otherSkyStone = getQuarryStone(StoneLocation.ONE);
+        } else {
+            otherSkyStone = getQuarryStone(StoneLocation.TWO);
+        }
+        Log.d(logTag, "Other stone " + otherSkyStone.toString());
+
+        // Add the observed Skystone to the array list
+        skyStones.add(observedSkyStone);
+
+        //  Add the other skystone according to the recognized pattern
+        skyStones.add(otherSkyStone);
+
+        Log.d(logTag, "...SkyStones written");
+
+    }
+
     public static int getFoundSkyStoneCount(){
-        return getSkyStones().size();
+        return skyStones.size();
     }
 
 
@@ -155,7 +181,7 @@ public class QuarryStone {
      */
     public Double probabilitySkyStone(){
         Double probability;
-        if (this.numObservations < 10){
+        if (this.numObservations < 1){
             probability = 0.0;
         } else {
             probability = ((double) numIdSkyStone) / numObservations;
