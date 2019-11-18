@@ -14,7 +14,7 @@ import static java.lang.String.format;
 
 @Disabled
 @TeleOp
-public class Teleop_Competition extends LinearOpMode {
+public class Teleop_Competition_2018 extends LinearOpMode {
     //Drive Motors
     private DcMotor frontLeft;
     private DcMotor frontRight;

@@ -7,16 +7,15 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 
 import java.util.ArrayList;
 
-import static java.lang.String.format;
-
 @Autonomous
 
-public class Auton_Blue_Foundation_W1 extends eBotsAuton2019 {
+
+public class Red_Foundation extends eBotsAuton2019 {
 
     /****************************************************************
     //******    CONFIGURATION PARAMETERS
     //***************************************************************/
-    private Alliance alliance = Alliance.BLUE;
+    private Alliance alliance = Alliance.RED;
     private FieldSide fieldSide = FieldSide.FOUNDATION;
     private Speed speedConfig = Speed.SLOW;
     private GyroSetting gyroConfig = GyroSetting.EVERY_LOOP;
@@ -36,6 +35,8 @@ public class Auton_Blue_Foundation_W1 extends eBotsAuton2019 {
 
         ArrayList<DcMotor> motorList = new ArrayList<>();   //List of motors
 
+        String logTag = "BTI_FOUNDATION";
+        Log.d(logTag, "Starting OpMode...");
         //  Setup motors & encoders, either simulated or real
         if (simulateMotors) {
             initializeEncoderTrackers();        //virtual encoders
@@ -43,6 +44,9 @@ public class Auton_Blue_Foundation_W1 extends eBotsAuton2019 {
             initializeDriveMotors(motorList, true);
             initializeEncoderTrackers(motorList);           //actual encoders
             initializeManipMotors();
+            initializeLimitSwitches();          //limit switches
+            initializeDistanceSensors();        //distance sensors
+
         }
 
         Integer wayPoseIndex = 1;
@@ -71,6 +75,13 @@ public class Auton_Blue_Foundation_W1 extends eBotsAuton2019 {
         }
         Double initialGyroOffset = currentPose.getInitialGyroOffset();
 
+        Log.d(logTag, "First Waypose set");
+
+        //***************************************************************
+        //  Open up the webcam
+        //***************************************************************
+        prepWebcam();
+
 
         String loopMetrics = "Loop Initialized";
         writeOdometryTelemetry(loopMetrics, currentPose);
@@ -83,9 +94,8 @@ public class Auton_Blue_Foundation_W1 extends eBotsAuton2019 {
         waitForStart();
 
         //Travel first leg
-        Log.d("BTI_runOpMode", "~~~~~~~~~~~~~Starting LegStarting Leg " + wayPoseIndex.toString());
+        Log.d(logTag, "~~~~~~~~~~~~~Starting LegStarting Leg " + wayPoseIndex.toString());
 
-        raiseLifterToExtendArm();
         //***************************************************************
         //  MAKE FIRST MOVE
         //***************************************************************
@@ -96,10 +106,10 @@ public class Auton_Blue_Foundation_W1 extends eBotsAuton2019 {
         Double currentPoseHeadingError;
         while(opModeIsActive() && wayPoseIndex< wayPoses.size()) {
 
-            //Perform actions specified in the targetPose of the path leg that was just completed
-            executePostMoveActivity(currentPose,motorList, alliance);
             //Correct heading angle if not within tolerance limits set in accuracyConfig
             correctHeading(currentPose, motorList);
+            //Perform actions specified in the targetPose of the path leg that was just completed
+            executePostMoveActivity(currentPose,motorList, alliance);
 
             //Set ending of previous leg as the starting pose for new leg
             //  Position and pose are taken from the TrackingPose object returned by travelToNextPose
@@ -113,25 +123,18 @@ public class Auton_Blue_Foundation_W1 extends eBotsAuton2019 {
             currentPose.copyInitialGyroOffsetBetweenLegs(initialGyroOffset);
             //setInitialOffsetForTrackingPose(imu, currentPose, initialGyroOffset);
 
-            Log.d("BTI_runOpMode", "~~~~~~~~~~~~~Starting Leg " + wayPoseIndex.toString());
+            Log.d(logTag, "~~~~~~~~~~~~~Starting Leg " + wayPoseIndex.toString() + " to " +
+                    currentPose.getTargetPose().toString());
+            Log.d(logTag, "Start Position " + currentPose.toString());
             endPose = travelToNextPose(currentPose, motorList);
-
+            Log.d(logTag, "Leg completed, new position " + endPose.toString());
             wayPoseIndex++;
         }
-
+        Log.d(logTag, "All Legs Completed, current Position " + endPose.toString());
         correctHeading(currentPose, motorList);
 
         //  Verify all drive motors are stopped
         if(!simulateMotors) stopMotors(motorList);
-
-        //  Hold telemetry for a few seconds
-        StopWatch timer = new StopWatch();
-        timer.startTimer();
-        loopMetrics = "All Points Completed";
-
-        while (opModeIsActive() && timer.getElapsedTimeSeconds() < 5){
-            writeOdometryTelemetry(loopMetrics, currentPose);
-        }
 
         //  Close vuforia webcam interface
         if (tfod != null) {

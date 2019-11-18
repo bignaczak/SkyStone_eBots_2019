@@ -2,7 +2,6 @@ package org.firstinspires.ftc.teamcode;
 
 
 import android.util.Log;
-import android.widget.TabHost;
 
 import java.util.ArrayList;
 
@@ -23,33 +22,29 @@ public class QuarryStone {
     private Integer numObservations;
     private Integer numIdSkyStone;
     private StoneLocation stoneLocation;
+    private double x;
+    private double y;
 
     /***************************************************************
      //******    ENUMERATIONS
      //***************************************************************/
 
     public enum StoneLocation{
-        ZERO (-68.0, 22.0),
-        ONE (-60.0, 22.0),
-        TWO (-52.0, 22.0),
-        THREE (-44.0, 22.0),
-        FOUR (-36.0, 22.0),
-        FIVE (-28.0, 22.0);
+        ZERO (-66.0, 22.0),
+        ONE (-58.0, 22.0),
+        TWO (-50.0, 22.0),
+        THREE (-42.0, 22.0),
+        FOUR (-34.0, 22.0),
+        FIVE (-26.0, 22.0);
 
-        private double xStone;
-        private double yStone;
+        private double xStoneEnum;
+        private double yStoneEnum;
 
 
         StoneLocation(Double x, Double y){
-            this.xStone = x;
-            this.yStone = y;
+            this.xStoneEnum = x;
+            this.yStoneEnum = y;
         }
-
-        //**        ENUM GETTERS & Setters         ***************
-        public double getXStone() {return this.xStone;}
-        public double getYStone() {return this.yStone;}
-        public void setXStone(Double xInput) {this.xStone = xInput;}
-        public void setYStone(Double yInput) {this.yStone = yInput;}
 
         public static StoneLocation getStoneLocation(int location){
             StoneLocation returnLocation;
@@ -76,8 +71,10 @@ public class QuarryStone {
 
     public QuarryStone(StoneLocation location, eBotsAuton2019.Alliance alliance){
         this.stoneLocation = location;
+        this.x = stoneLocation.xStoneEnum;
+        this.y = stoneLocation.yStoneEnum;
         if(alliance == eBotsAuton2019.Alliance.RED){
-            this.stoneLocation.setYStone(-this.stoneLocation.getYStone());
+            this.y = -y;
         }
         this.numObservations = 0;
         this.numIdSkyStone = 0;
@@ -89,7 +86,9 @@ public class QuarryStone {
      //****************************************************************/
     public static ArrayList<QuarryStone> getQuarryStones(){return quarryStones;}
     public StoneLocation getStoneLocation(){return this.stoneLocation;}
-
+    public double getX(){return this.x;}
+    public double getY(){return this.y;}
+    public void setY(double yIn){this.y = yIn;}
 
 
     /***************************************************************
@@ -119,6 +118,24 @@ public class QuarryStone {
             }
         }
         return returnStone;
+    }
+
+    public static int getCountObserved(){
+        int countObserved = 0;
+        for(QuarryStone stone: quarryStones) {
+            if (stone.numObservations > 3)
+                countObserved++;
+        }
+        return countObserved;
+    }
+
+    public static int getCountSkyStones(){
+        int countSkyStones = 0;
+        for(QuarryStone stone: quarryStones) {
+            if (stone.isSkyStone())
+                countSkyStones++;
+        }
+        return countSkyStones;
     }
 
 
@@ -197,7 +214,7 @@ public class QuarryStone {
 
     public Boolean isSkyStone(){
         Boolean returnValue;
-        if (probabilitySkyStone() > 0.8){
+        if (probabilitySkyStone() > 0.5){
             returnValue = true;
         } else {
             returnValue = false;
@@ -214,7 +231,8 @@ public class QuarryStone {
 
     @Override
     public String toString(){
-        return "Position " + this.stoneLocation.name() + " , SkyStone Probability: "
+        return "Position " + this.stoneLocation.name() + " (" + this.getX() +
+                ", " + this.getY() + ") , SkyStone Probability: "
                 + format("%.2f", this.probabilitySkyStone()) + " Observed " + this.numObservations
                 + " times";
     }

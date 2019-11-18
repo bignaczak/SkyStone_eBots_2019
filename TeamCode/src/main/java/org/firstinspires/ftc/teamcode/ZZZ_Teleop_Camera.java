@@ -7,7 +7,7 @@ import com.qualcomm.robotcore.hardware.DigitalChannel;
 import java.util.ArrayList;
 
 @TeleOp
-public class Competition2019_Beta_Camera extends eBotsAuton2019 {
+public class ZZZ_Teleop_Camera extends eBotsAuton2019 {
 
 
     /****************************************************************
@@ -24,11 +24,6 @@ public class Competition2019_Beta_Camera extends eBotsAuton2019 {
      */
 
     private Integer blockHeightClicks = -475;
-    //***************************************************************
-    //Initialize Lifter limit switches
-    //***************************************************************
-    private DigitalChannel lifterLimit1;
-    private DigitalChannel lifterAtBottom;
 
     @Override
     public void runOpMode(){
@@ -70,9 +65,7 @@ public class Competition2019_Beta_Camera extends eBotsAuton2019 {
         //Initialize Manipulator Arm variables
         //***************************************************************
         initializeManipMotors();
-        lifterLimit1 = hardwareMap.get(DigitalChannel.class, "lifterLimit1");
-        lifterAtBottom = hardwareMap.get(DigitalChannel.class, "lifterLimit2");
-
+        initializeLimitSwitches();
 
         //***************************************************************
         //Initialize the variables that are being used in the main loop
@@ -291,7 +284,7 @@ public class Competition2019_Beta_Camera extends eBotsAuton2019 {
             } else if (lifterUserInput > 0.3){
                 //This is for going up
                 lifterPosition = lifter.getCurrentPosition() - lifterIncrement;
-                if (lifterPosition < lifterMaxPosition) lifterPosition = lifterMaxPosition;
+                if (lifterPosition < LIFTER_UPPER_LIMIT) lifterPosition = LIFTER_UPPER_LIMIT;
                 holdLifterPosition = false;
                 lifter.setTargetPosition(lifterPosition);
                 lifter.setPower(lifterPowerLevel);

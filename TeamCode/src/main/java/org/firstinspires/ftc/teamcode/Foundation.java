@@ -21,9 +21,9 @@ public class Foundation {
         this.width = 18.5;
         this.height = 2.25;
         //Assume 18" robot pulls it toward wall
-        this.yCenter = 72.0 - 18.0 - this.width/2.0;
+        this.yCenter = 41.75;
         //starts 4" from top wall, x coord doesn't change
-        this.xCenter = 72.0 - 4.0 - this.length / 2.0;
+        this.xCenter = 48.0;
         this.orientationDegrees = 0;
     }
     public Foundation(eBotsAuton2019.Alliance alliance){
@@ -37,8 +37,18 @@ public class Foundation {
      //******    SIMPLE GETTERS AND SETTERS
      //****************************************************************/
 
-    public Pose getSkyStoneDumpingPose(Double offsetDistance){
-        return new Pose(xCenter-height/2.0 - offsetDistance, yCenter - width/2.0, orientationDegrees);
+    public Pose getSkyStoneDumpingPose(double offsetDistance){
+        return new Pose(xCenter-length/2.0 - offsetDistance, yCenter, orientationDegrees);
     }
+    public Pose getSkyStoneDumpingPose(){
+        double offsetDistance = 19.0;
+        return new Pose(xCenter-length/2.0 - offsetDistance, yCenter, orientationDegrees);
+    }
+
+    public Pose getPoseAfterPlaceSkystone(TrackingPose endPose, eBotsAuton2019.Alliance alliance){
+        double incrementSign = (alliance == eBotsAuton2019.Alliance.BLUE) ? -1.0 : 1.0;
+        return new Pose (endPose.getX() - 4.0, endPose.getY() + (10.0 * incrementSign), 0.0);
+    }
+
 
 }

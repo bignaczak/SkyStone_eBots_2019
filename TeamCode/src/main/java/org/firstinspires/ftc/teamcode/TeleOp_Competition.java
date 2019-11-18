@@ -7,7 +7,7 @@ import com.qualcomm.robotcore.hardware.DigitalChannel;
 import java.util.ArrayList;
 
 @TeleOp
-public class Competition2019_Beta_V2 extends eBotsOpMode2019 {
+public class TeleOp_Competition extends eBotsOpMode2019 {
 
     /**
      * Change lifter behavior for going down to RUN_WITHOUT_ENCODERS
@@ -18,11 +18,6 @@ public class Competition2019_Beta_V2 extends eBotsOpMode2019 {
      * --> Make super-slow mo a little faster (0.65 reduction instead of 0.75)
      */
 
-    //***************************************************************
-    //Initialize Lifter limit switches
-    //***************************************************************
-    private DigitalChannel lifterLimit1;
-    private DigitalChannel lifterAtBottom;
 
     @Override
     public void runOpMode(){
@@ -69,13 +64,11 @@ public class Competition2019_Beta_V2 extends eBotsOpMode2019 {
         //Initialize Limit Switches
         //***************************************************************
         initializeLimitSwitches();
-        /*
-         lifterLimit1 = hardwareMap.get(DigitalChannel.class, "lifterLimit1");
-        lifterAtBottom = hardwareMap.get(DigitalChannel.class, "lifterLimit2");
 
-         */
 
-            //***************************************************************
+
+
+        //***************************************************************
         //Initialize the variables that are being used in the main loop
         //***************************************************************
         StopWatch rakeTimer = new StopWatch();
@@ -201,7 +194,7 @@ public class Competition2019_Beta_V2 extends eBotsOpMode2019 {
             } else if (gamepad2.right_trigger > 0.3 && !gamepad2.left_bumper) {
                 //----------release----------------
                 rollerGripper.setPower(rollerGripperPowerLevel);
-            } else if(gamepad2.left_bumper && gamepad2.left_trigger > 0.3){
+            } else if(gamepad2.left_bumper && gamepad2.right_bumper){
                 //----------Initiate AutoGrab----------------
                 autoGrabStone(motorList);
             } else if(gamepad2.left_bumper && gamepad2.right_trigger > 0.3){

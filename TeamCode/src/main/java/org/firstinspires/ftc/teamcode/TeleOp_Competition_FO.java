@@ -7,17 +7,12 @@ import com.qualcomm.robotcore.hardware.DigitalChannel;
 import java.util.ArrayList;
 
 @TeleOp
-public class Competition2019_Beta_V2_FO extends eBotsOpMode2019 {
+public class TeleOp_Competition_FO extends eBotsOpMode2019 {
 
     /**
      * FIELD ORIENTED VERSION OF COMPETITION_BETA_V2
      */
 
-    //***************************************************************
-    //Initialize Lifter limit switches
-    //***************************************************************
-    private DigitalChannel lifterLimit1;
-    private DigitalChannel lifterAtBottom;
 
     @Override
     public void runOpMode(){
@@ -28,6 +23,7 @@ public class Competition2019_Beta_V2_FO extends eBotsOpMode2019 {
         ArrayList<DcMotor> motorList= new ArrayList<>();
         if (motorList.size()>1) motorList.clear();  //Make sure there aren't any items in the list
         initializeDriveMotors(motorList, true);
+        initializeImu();
 
         //***************************************************************
         //Initialize the variables that are being used in the main loop
@@ -59,9 +55,6 @@ public class Competition2019_Beta_V2_FO extends eBotsOpMode2019 {
         //Initialize Manipulator Arm variables
         //***************************************************************
         initializeManipMotors();
-        lifterLimit1 = hardwareMap.get(DigitalChannel.class, "lifterLimit1");
-        lifterAtBottom = hardwareMap.get(DigitalChannel.class, "lifterLimit2");
-
         //***************************************************************
         //Initialize Limit Switches
         //***************************************************************
@@ -110,9 +103,9 @@ public class Competition2019_Beta_V2_FO extends eBotsOpMode2019 {
             //  [LEFT TRIGGER] --> Variable reduction in robot speed to allow for fine position adjustment
             //  [RIGHT BUMPER] --> Speed boost, maximized motor drive speed
 
-            driveX = gamepad1.left_stick_x;        //Read left stick position for left/right motion
+            driveX = -gamepad1.left_stick_x;        //Read left stick position for left/right motion
             driveY = -gamepad1.left_stick_y;       //Read left stick position for forward/reverse Motion
-            spin = gamepad1.right_stick_x * spinScaleFactor; //This is used to determine how to spin the robot
+            spin = -gamepad1.right_stick_x * spinScaleFactor; //This is used to determine how to spin the robot
             fineAdjust = gamepad1.left_trigger;     //Pull to slow motion
             speedBoostOn = gamepad1.right_bumper;   //Push to maximize motor drives
 
@@ -203,7 +196,7 @@ public class Competition2019_Beta_V2_FO extends eBotsOpMode2019 {
             } else if (gamepad2.right_trigger > 0.3 && !gamepad2.left_bumper) {
                 //----------release----------------
                 rollerGripper.setPower(rollerGripperPowerLevel);
-            } else if(gamepad2.left_bumper && gamepad2.left_trigger > 0.3){
+            } else if(gamepad2.left_bumper && gamepad2.right_bumper){
                 //----------Initiate AutoGrab----------------
                 autoGrabStone(motorList);
             } else if(gamepad2.left_bumper && gamepad2.right_trigger > 0.3){

@@ -164,8 +164,10 @@ public class TrackingPose extends Pose {
         this.poseError.calculateErrorSum(isSaturated);
     }
 
-    public void setHeadingErrorLocked(Boolean isSaturated, Boolean driveSignalSignChange){
-        if (!isSaturated && driveSignalSignChange){
+    public void setHeadingErrorLocked(Boolean isSaturated, Boolean driveSignalSignChange, double iGain){
+        if (iGain == 0.0) {
+            headingErrorLocked = false;
+        } else if (!isSaturated && driveSignalSignChange){
             headingErrorLocked = false;
         } else if (!isSaturated){
             headingErrorLocked = true;

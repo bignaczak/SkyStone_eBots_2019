@@ -97,7 +97,7 @@ public class EncoderTracker {
     //****************************************************************/
 
     public static void getNewPose (TrackingPose trackingPose){
-        boolean debugOn = true;
+        boolean debugOn = false;
         String debugTag = "BTI_getNewPose";
         int incrementalClicks;                   //new encoder position for this iteration
         Double newX = trackingPose.getX();   //starting position for x
@@ -111,10 +111,12 @@ public class EncoderTracker {
             Log.d(debugTag, "Num Encoders: " + encoders.size());
         }
         // TODO: 10/13/2019 Add consideration for rotation
-
+        ListIterator<EncoderTracker> listIterator = encoders.listIterator();
+        while(listIterator.hasNext()){
         //  Loop through the encoders to figure out how much
-        for (EncoderTracker e: encoders){
+        //for (EncoderTracker e: encoders){
             //Calculate distance traveled for encoder
+            EncoderTracker e = listIterator.next();
             if (debugOn) {
                 Log.d(debugTag, e.toString());
             }
@@ -210,7 +212,7 @@ public class EncoderTracker {
         if (this.motor != null) {
             outputString =  "Real encoder " + this.robotOrientation.name()
                     + " Motor Port: " + this.motor.getPortNumber() + " Clicks: "
-                    + this.motor.getCurrentPosition();
+                    + this.getClicks() + " Distance: " + Math.abs(this.getClicks() / clicksPerInch);
         } else {
             outputString = "Virtual Encoder, Orientation: " + this.robotOrientation.name()
                     + " Clicks: " + this.getClicks();

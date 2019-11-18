@@ -3,12 +3,14 @@ package org.firstinspires.ftc.teamcode;
 import android.util.Log;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.hardware.DcMotor;
 
 import java.util.ArrayList;
 import java.util.ListIterator;
 
 @Autonomous
+@Disabled
 public class Auton_Camera_Beta extends eBotsAuton2019 {
 
 
@@ -17,7 +19,7 @@ public class Auton_Camera_Beta extends eBotsAuton2019 {
      //***************************************************************/
     private Alliance alliance = Alliance.BLUE;
     private FieldSide fieldSide = FieldSide.QUARRY;
-    private Speed speedConfig = Speed.MEDIUM;
+    private Speed speedConfig = Speed.FAST;
     private GyroSetting gyroConfig = GyroSetting.EVERY_LOOP;
     private SoftStart softStartConfig = SoftStart.MEDIUM;
     private Accuracy accuracyConfig = Accuracy.STANDARD;
@@ -190,6 +192,7 @@ public class Auton_Camera_Beta extends eBotsAuton2019 {
         currentPose = getTrackingPoseToBridgePark(currentPose, alliance);
         Log.d(logTag, "~~~~~~~~~~~~~parking under bridge");
         endPose = travelToNextPose(currentPose, motorList);     //Actually drive
+
         Log.d(logTag, "parked under bridge " + overallTime.toString());
 
         //  Verify all drive motors are stopped

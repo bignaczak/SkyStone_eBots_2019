@@ -69,7 +69,7 @@ public class SampleTeleOpMode_FieldOriented extends eBotsOpMode2019 {
 
         driveX = -gamepad1.left_stick_x;        //Read left stick position for left/right motion
         driveY = -gamepad1.left_stick_y;       //Read left stick position for forward/reverse Motion
-        spin = -gamepad1.right_stick_x * spinScaleFactor; //This is used to determine how to spin the robot
+        spin = gamepad1.right_stick_x * spinScaleFactor; //This is used to determine how to spin the robot
         fineAdjust = gamepad1.left_trigger;     //Pull to slow motion
         speedBoostOn = gamepad1.right_bumper;   //Push to maximize motor drives
 

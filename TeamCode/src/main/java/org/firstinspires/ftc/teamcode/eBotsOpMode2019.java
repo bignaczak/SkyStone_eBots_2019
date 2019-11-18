@@ -9,6 +9,7 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DigitalChannel;
+import com.qualcomm.robotcore.hardware.DistanceSensor;
 import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.robotcore.external.ClassFactory;
@@ -69,6 +70,10 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
     protected DigitalChannel lifterLimit1;
     protected DigitalChannel lifterAtBottom;
 
+    //  2m Distance Sensor
+    protected DistanceSensor frontDistSensor;
+
+
 
     public BNO055IMU imu;          //Create a variable for the gyroscope on the Expansion Hub
     public double currentHeading;  //Angular direction in Degrees
@@ -104,9 +109,12 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
     protected final Double ROTATE2_CLAW_FORWARD = 0.798;
     protected final Double ROTATE2_CLAW_90RIGHT = 0.289;
 
-    protected final int GRAB_HEIGHT_CLICKS = -600;
-    protected final int STONE_HEIGHT_CLICKS = -1200;
-    protected final int LIFTER_UPPER_LIMIT = (int) (GRAB_HEIGHT_CLICKS + 4.0 * STONE_HEIGHT_CLICKS);
+    protected final int GRAB_HEIGHT_CLICKS = -750;
+    protected final int PLACE_SKYSTONE_HEIGHT = -750;
+    protected final int STONE_HEIGHT_CLICKS = -750;
+    protected final int LIFTER_UPPER_LIMIT = -4184;
+    protected final int CLICKS_TO_RELEASE_ARM = -600;
+
 
 
     protected double foundationRakePosition;
@@ -114,7 +122,6 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
     protected double rotate2ClawPosition;
     protected double clawPosition;
     protected Integer lifterPosition;
-    protected Integer lifterMaxPosition = -5000;
 
     protected double timerLimit = 100;  //ms
     protected double clawTimerLimit = 250;  //ms
@@ -157,6 +164,16 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         UP,
         DOWN
     }
+
+    public enum TranslateDirection{
+        FORWARD,
+        BACKWARD,
+        LEFT,
+        RIGHT
+    }
+
+
+
     /***************************************************************
      //******    GETTERS AND SETTERS
      //***************************************************************/
@@ -168,6 +185,8 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
             driveMotors.add(m);
         }
     }
+
+    protected ArrayList<DcMotor> getDriveMotors(){return driveMotors;}
 
 
     /***************************************************************
@@ -379,6 +398,11 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
 
     }
 
+    protected void initializeDistanceSensors(){
+        frontDistSensor = hardwareMap.get(DistanceSensor.class, "sensor_range");
+
+    }
+
     protected void findLifterZero(){
         /**
          * Method to lower lifter until limit switch is contacted to set zero point
@@ -386,7 +410,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         StopWatch timer = new StopWatch();
         Long timeout = 3000L;
         lifter.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        lifter.setPower(0.6);   //
+        lifter.setPower(0.25);   //  was 0.6
         timer.startTimer();
         while(opModeIsActive() && !lifterAtBottom.getState()
                 && timer.getElapsedTimeMillis()<timeout){
@@ -499,7 +523,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
             long timeOut = 1500L;
             int startPosition = lifter.getCurrentPosition();
 
-            int targetClickIncrement = (int) (GRAB_HEIGHT_CLICKS / 2);  //Note GRAB_HEIGHT_CLICKS is negative
+            int targetClickIncrement = CLICKS_TO_RELEASE_ARM;  //Note GRAB_HEIGHT_CLICKS is negative
             int targetPosition = startPosition + targetClickIncrement;
             boolean liftAtUpperLimit = (lifter.getCurrentPosition() <= LIFTER_UPPER_LIMIT) ? true : false;
             boolean targetPositionReached = (lifter.getCurrentPosition() <= targetPosition) ? true : false;
@@ -532,8 +556,8 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
 
     protected void setLifterHeightToPlaceStone(int level){
         //height of foundation is about 1/2 of block height
-        int baseHeight = (int) (1.5 * GRAB_HEIGHT_CLICKS);
-        int targetHeight = baseHeight + (int) ((level-1) * GRAB_HEIGHT_CLICKS);
+        int baseHeight = (int) (PLACE_SKYSTONE_HEIGHT);
+        int targetHeight = baseHeight + (int) ((level-1) * STONE_HEIGHT_CLICKS);
         lifter.setTargetPosition(targetHeight);
         lifter.setPower(lifterPowerLevel);
     }
@@ -551,7 +575,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
          *
          */
         Integer lifterHeightDrive = -150;
-        Long pulseTimeOut = 500L;
+        Long pulseTimeOut = 350L;
         Long timeout = 800L;
         StopWatch timer = new StopWatch();
 
@@ -560,7 +584,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
 
         //  2) lower lifter while moving grabber wheel
         //  Start roller
-        rollerGripper.setPower(rollerGripperPowerLevel/2);       //half speed
+        rollerGripper.setPower(-rollerGripperPowerLevel);       //half speed
 
         lifter.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         lifter.setPower(0.3);   //
@@ -577,7 +601,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         timer.startTimer();
         while (opModeIsActive() && timer.getElapsedTimeMillis() < pulseTimeOut){
             //roll the gripper for a while
-            rollerGripper.setPower(rollerGripperPowerLevel);
+            rollerGripper.setPower(-rollerGripperPowerLevel);
         }
 
         //  4) stop wheel and lift for travel
@@ -600,7 +624,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         final Double rollerGripperSpeed = 0.35;  //slow release speed
         final Double liftPowerLevelRelease = 0.25;
         Integer currentLifterPositionError;
-        Long timeout = 1000L;
+        Long timeout = 1750L;
 
         StopWatch timer = new StopWatch();
         timer.startTimer();
@@ -616,10 +640,15 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
                 && timer.getElapsedTimeMillis() < timeout){
             rollerGripper.setPower(rollerGripperSpeed);
             currentLifterPositionError = lifterPosition - lifter.getCurrentPosition();
+            processDriverControls();
         }
 
         //  Set power level back
         lifter.setPower(lifterPowerLevel);
+        //turn off rollers
+        rollerGripper.setPower(0.0);
+
+
     }
 
     protected void processDriverControls(){
@@ -809,7 +838,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         if(gamepad2.left_bumper && gamepad2.left_trigger > 0.3){
             //----------Initiate AutoGrab----------------
             autoGrabStone(driveMotors);
-        } else if(gamepad2.left_bumper && gamepad2.right_trigger > 0.3){
+        } else if(gamepad2.left_bumper && gamepad2.right_bumper){
             //----------Initiate AutoRelease----------------
             autoReleaseStone(driveMotors);
         }
@@ -956,6 +985,36 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         //Stop all the motors
         stopMotors(motors);
     }
+
+    public void translateRobot(TranslateDirection direction, double speed){
+        //r gives the left stick's offset from 0 position by calculating hypotenuse of x and y offset
+        double xInput = 0.0;
+        double yInput = 0.0;
+        double spin = 0.0;
+
+        if(direction == TranslateDirection.FORWARD){
+            xInput = 0.0;
+            yInput = speed;
+        } else if (direction == TranslateDirection.BACKWARD){
+            xInput = 0.0;
+            yInput = -speed;
+        }
+        //Robot angle calculates the angle (in radians) and then subtracts pi/4 (45 degrees) from it
+        //The 45 degree shift aligns the mecanum vectors for drive
+        double robotAngle = Math.atan2(yInput, xInput) - Math.PI / 4;
+
+        double[] driveValues = new double[4];
+        calculateDriveVector(speed, robotAngle, spin, driveValues);     //Calculate motor drive speeds
+
+        //Setup the time increment for autonomous
+            //Now actually assign the calculated drive values to the motors in motorList
+        int i=0;
+        for (DcMotor m: driveMotors){
+            m.setPower(driveValues[i]);
+            i++;
+        }
+    }
+
     public void twistToAngle(double spinAngleInDegrees, double speed, ArrayList<DcMotor> motors){
         //Note this logic is demoed in the "Gyro" tab of "Rover Time Trials" Google Sheets file
         //All angles in this routine are in DEGREES

@@ -31,8 +31,8 @@ public class Pose {
         , BLUE_FOUNDATION (39.0, 62.0, 90.0)
         , RED_QUARRY (-12.0, -62.0, 90.0)
         , BLUE_QUARRY (-12.0, 62.0, -90.0)
-        , FOUNDATION(39.0, 62.0, 90.0)
-        , QUARRY (-39.0, 62.0, -90.0);
+        , FOUNDATION(38.0, 60.0, 90.0)
+        , QUARRY (-38.0, 60.0, -90.0);
 
         private double xStart;
         private double yStart;
@@ -148,7 +148,7 @@ public class Pose {
      //******    Static METHODS
      //***************************************************************/
     public static Pose getBridgeParkPose(TrackingPose trackingPose, eBotsAuton2019.Alliance alliance){
-        double parkX = 4.0;     //Center of the robot 4" from midline in building zone
+        double parkX = 0.0;     //Center of the robot 4" from midline in building zone
         double parkY = 39.0;    //Near the inner edge of the field
         double heading = trackingPose.getHeading();
 

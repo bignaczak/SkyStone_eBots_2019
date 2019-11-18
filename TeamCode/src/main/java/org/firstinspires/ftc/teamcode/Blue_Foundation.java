@@ -1,5 +1,7 @@
 package org.firstinspires.ftc.teamcode;
 
+import android.util.Log;
+
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -7,9 +9,9 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import java.util.ArrayList;
 
 @Autonomous
-@Disabled
 
-public class Auton_Detect extends eBotsAuton2019 {
+
+public class Blue_Foundation extends eBotsAuton2019 {
 
     /****************************************************************
     //******    CONFIGURATION PARAMETERS
@@ -34,6 +36,8 @@ public class Auton_Detect extends eBotsAuton2019 {
 
         ArrayList<DcMotor> motorList = new ArrayList<>();   //List of motors
 
+        String logTag = "BTI_FOUNDATION";
+        Log.d(logTag, "Starting OpMode...");
         //  Setup motors & encoders, either simulated or real
         if (simulateMotors) {
             initializeEncoderTrackers();        //virtual encoders
@@ -41,6 +45,9 @@ public class Auton_Detect extends eBotsAuton2019 {
             initializeDriveMotors(motorList, true);
             initializeEncoderTrackers(motorList);           //actual encoders
             initializeManipMotors();
+            initializeLimitSwitches();          //limit switches
+            initializeDistanceSensors();        //distance sensors
+
         }
 
         Integer wayPoseIndex = 1;
@@ -59,6 +66,7 @@ public class Auton_Detect extends eBotsAuton2019 {
             currentPose = new TrackingPose(wayPoses.get(0), wayPoses.get(0));
         }
 
+        //  Instantiate gyro object if being utilized
         //This is called only once to document offset of gyro from field coordinate system
 
         if (useGyroForNavigation) {
@@ -68,15 +76,17 @@ public class Auton_Detect extends eBotsAuton2019 {
         }
         Double initialGyroOffset = currentPose.getInitialGyroOffset();
 
+        Log.d(logTag, "First Waypose set");
+
+        //***************************************************************
+        //  Open up the webcam
+        //***************************************************************
+        prepWebcam();
+
 
         String loopMetrics = "Loop Initialized";
         writeOdometryTelemetry(loopMetrics, currentPose);
 
-        /***************************************************************
-         * Prepare the webcam
-         ***************************************************************/
-
-        prepWebcam();
 
         /***************************************************************
         //  END OF OPMODE INITIALIZATION
@@ -84,9 +94,48 @@ public class Auton_Detect extends eBotsAuton2019 {
         //**************************************************************/
         waitForStart();
 
-        while (opModeIsActive()){
-            scanForSkystone();
+        //Travel first leg
+        Log.d(logTag, "~~~~~~~~~~~~~Starting LegStarting Leg " + wayPoseIndex.toString());
+
+        //***************************************************************
+        //  MAKE FIRST MOVE
+        //***************************************************************
+
+        TrackingPose endPose = travelToNextPose(currentPose, motorList);
+        wayPoseIndex++;
+
+        Double currentPoseHeadingError;
+        while(opModeIsActive() && wayPoseIndex< wayPoses.size()) {
+
+            //Correct heading angle if not within tolerance limits set in accuracyConfig
+            correctHeading(currentPose, motorList);
+            //Perform actions specified in the targetPose of the path leg that was just completed
+            executePostMoveActivity(currentPose,motorList, alliance);
+
+            //Set ending of previous leg as the starting pose for new leg
+            //  Position and pose are taken from the TrackingPose object returned by travelToNextPose
+            Pose startPose = new Pose(endPose.getX(), endPose.getY(), endPose.getHeading());
+            currentPose = new TrackingPose(startPose, wayPoses.get(wayPoseIndex));
+
+            //Must set the initialGryOffset
+            //This routine first sets the heading and then sets the initialGyroOffset
+            //This is likely redundant and can be replaced with just a call to setInitialGyroOffset
+            //Todo: Verify that copying the initialGyroOffset works and delete setInitialOffset...
+            currentPose.copyInitialGyroOffsetBetweenLegs(initialGyroOffset);
+            //setInitialOffsetForTrackingPose(imu, currentPose, initialGyroOffset);
+
+            Log.d(logTag, "~~~~~~~~~~~~~Starting Leg " + wayPoseIndex.toString() + " to " +
+                    currentPose.getTargetPose().toString());
+            Log.d(logTag, "Start Position " + currentPose.toString());
+            endPose = travelToNextPose(currentPose, motorList);
+            Log.d(logTag, "Leg completed, new position " + endPose.toString());
+            wayPoseIndex++;
         }
+        Log.d(logTag, "All Legs Completed, current Position " + endPose.toString());
+        correctHeading(currentPose, motorList);
+
+        //  Verify all drive motors are stopped
+        if(!simulateMotors) stopMotors(motorList);
 
         //  Close vuforia webcam interface
         if (tfod != null) {
