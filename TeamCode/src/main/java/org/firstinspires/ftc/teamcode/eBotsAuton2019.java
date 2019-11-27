@@ -84,12 +84,18 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
         FOUNDATION
         , QUARRY
         , TEST
+        , FOUNDATION_V2
+    }
+
+    public enum DelayedStart{
+        NO,
+        YES
     }
 
     public enum Speed{
         SLOW (0.35, 0.3, 0.15, 0.0),
-        MEDIUM (0.60,0.3,  0.07, 0.0),
-        FAST (0.8, 0.5, 0.04, 0.0);
+        MEDIUM (0.60,0.4,  0.07, 0.0),
+        FAST (0.8, 0.4, 0.04, 0.0);
 
         /**  ENUM VARIABLES     **************/
         private Double maxSpeed;
@@ -211,8 +217,7 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
      //******    CLASS METHODS
      //****************************************************************/
 
-    @Override
-    protected void setWayPoses(ArrayList<Pose> wayPoses, Alliance alliance, FieldSide fieldSide) {
+    protected void setWayPoses(ArrayList<Pose> wayPoses, Alliance alliance, FieldSide fieldSide, DelayedStart delayedStart) {
         /**  This function sets the wayPoses for blue side and then applies a
          * transformation by mirroring about the X axis for position and pose
          */
@@ -220,7 +225,21 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
         if (wayPoses.size() > 0) wayPoses.clear();       // get rid of pre-existing poses
 
         //These waypoints are for the blue side
-        if (fieldSide == FieldSide.FOUNDATION){
+        if (delayedStart == DelayedStart.YES) {
+            //  Execute a simple opMode where the robot moves minimally after extending arm
+            //  Set the starting Point assuming on BLUE FOUNDATION
+            wayPoses.add(new Pose(24.0, 60.0, 0.0));
+            //  Now if Quarry side, flip the sign of the s coordination and flip heading
+            //  Note that if red side, the coordinates will be transformed again
+            if (fieldSide == FieldSide.QUARRY) {
+                Pose p = wayPoses.get(0);
+                p.setX(-p.getX());      //Flip sign for Y
+                p.setHeading(p.getHeading()+180.0);     //Rotate from 0 to 180 deg
+            }
+            wayPoses.add(new Pose(0.0, 60.0, 0.0));
+
+
+        } else if (fieldSide == FieldSide.FOUNDATION) {
             //Blue Foundation
             wayPoses.add(new Pose(Pose.StartingPose.FOUNDATION));
             //Move to foundation plate and lower rake
@@ -231,12 +250,14 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
             wayPoses.add(new Pose(18.0, 60.0, 90.0));
             //move backwards towards center and raise arm, then lower for driving under bridge
             wayPoses.add(new Pose(18.0, 55.0, 0.0, Pose.PostMoveActivity.EXTEND_ARM_THEN_LOWER_LIFTER));
+            //Push foundation against back wall
+            wayPoses.add(new Pose(28.5, 55.0, 0.0));
+            //move back to wall
+            wayPoses.add(new Pose(25.0, 60.0, 0.0));
             //Stay in same location but spin to be skinny under bridge
-            wayPoses.add(new Pose(0.0, 55.0, 0.0));
+            wayPoses.add(new Pose(0.0, 60.0, 0.0));
 
-            //Park in the middle
-            //wayPoses.add(new Pose(-48.0, 0.0, 180.0));
-        } else if (fieldSide == FieldSide.QUARRY){
+        } else if (fieldSide == FieldSide.QUARRY) {
             // Start right next to depot
             wayPoses.add(new Pose(Pose.StartingPose.QUARRY));
             //Move to position to scan stones 4 and 5 and extend arm
@@ -244,9 +265,30 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
             // Stay in the same place and scan quarry
             wayPoses.add(new Pose(-30.0, 60.0, -90.0, Pose.PostMoveActivity.SCAN_FOR_SKYSTONE));
 
+        } else if (fieldSide == FieldSide.FOUNDATION_V2) {
+            //   FOUNDATION_V2 IS NOW THE SAME AS FOUNDATION
+            //Blue Foundation
+            wayPoses.add(new Pose(Pose.StartingPose.FOUNDATION));
+            //Move to foundation plate and lower rake
+            wayPoses.add(new Pose(50.0, 34.0, 90.0, Pose.PostMoveActivity.LOWER_RAKE));
+            //drag foundation over to wall
+            wayPoses.add(new Pose(50.0, 60.0, 90.0, Pose.PostMoveActivity.RAISE_RAKE));
+            //move sideways towards center of field
+            wayPoses.add(new Pose(18.0, 60.0, 90.0));
+            //move backwards towards center and raise arm, then lower for driving under bridge
+            wayPoses.add(new Pose(18.0, 55.0, 0.0, Pose.PostMoveActivity.EXTEND_ARM_THEN_LOWER_LIFTER));
+            //Push foundation against back wall
+            wayPoses.add(new Pose(28.5, 55.0, 0.0));
+            //move back to wall
+            wayPoses.add(new Pose(25.0, 60.0, 0.0));
+            //Stay in same location but spin to be skinny under bridge
+            wayPoses.add(new Pose(0.0, 60.0, 0.0));
+
+            //Park in the middle
+            //wayPoses.add(new Pose(-48.0, 0.0, 180.0));
         } else {
             //start at the origin facing X axis
-            wayPoses.add(new Pose(0.0,0.0,90.0));
+            wayPoses.add(new Pose(0.0, 0.0, 90.0));
             //move forward 20 inches
             wayPoses.add(new Pose(0.0, -5.0, 90.0));
             //move back to origin
@@ -258,14 +300,12 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
         //  Apply the transformation.
         //  -->  Change sign of Y position
         //  -->  Change sign of Heading
-        if (alliance == Alliance.RED){
-            for (Pose p:wayPoses){
-                p.setY(-p.getY());      //Flip sign for X
-                p.setHeading(-p.getHeading());  //The called method checks heading bounds (so -180 will become 180)
+        if (alliance == Alliance.RED) {
+            for (Pose p : wayPoses) {
+                applyRedAlliancePoseTransform(p);
             }
         }
     }
-
     protected void setGyroConfiguration(GyroSetting gyroSetting){
         useGyroForNavigation = gyroSetting.isGyroOn();
         gyroCallFrequency = gyroSetting.getReadFrequency();
@@ -342,7 +382,7 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
     }
 
 
-    protected TrackingPose travelToNextPose(TrackingPose currentPose, ArrayList<DcMotor> motorList){
+    protected TrackingPose travelToNextPose(TrackingPose currentPose){
         boolean debugOn = false;
         Integer loopCount = 0;
         String loopMetrics;
@@ -352,6 +392,7 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
         Boolean softStartActive = true;
         Boolean driveSignalSignChange = false;  //  When heading is locked, the headingError only
         String debugTag = "BTI_travelToNextPose";
+        ArrayList<DcMotor> motorList = getDriveMotors();
         //  gets recalculated when driveSignal changes sign
         //  This allows for the I portion of the PID controller
         //  to overshoot the target position
@@ -478,7 +519,7 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
                         if(debugOn) Log.d(debugTag, "Num Motors: " + " --> " + motorList.size());
                     }
                 } else {
-                    stopMotors(motorList);
+                    stopMotors();
                     if (debugOn) Log.d(debugTag, "Destination reached, motors stopped");
                 }
             }
@@ -498,7 +539,7 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
 
         }
 
-        if(!simulateMotors) stopMotors(motorList);
+        if(!simulateMotors) stopMotors();
 
         if (debugOn) Log.d(debugTag, "Forward Encoder: " + forwardTracker.toString());
         if (debugOn) Log.d(debugTag, "Lateral Encoder: " + lateralTracker.toString());
@@ -534,16 +575,19 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
         return softStartScale;
     }
 
-    public void correctHeading(TrackingPose currentPose, ArrayList<DcMotor> motorList){
+    public void correctHeading(TrackingPose currentPose){
         Double currentPoseHeadingError;
+        ArrayList<DcMotor> motorList = getDriveMotors();
         String debugTag = "BTI_correctHeading";
-        Log.d(debugTag, "Start of correctHeading, " + currentPose.toString());
-        Log.d(debugTag, "TargetPose, " + currentPose.getTargetPose().toString());
+        boolean debugOn = true;
+
+        if (debugOn) Log.d(debugTag, "Start of correctHeading, " + currentPose.toString());
+        if (debugOn) Log.d(debugTag, "TargetPose, " + currentPose.getTargetPose().toString());
         currentPoseHeadingError = Math.abs(currentPose.getHeading() - currentPose.getTargetPose().getHeading());
-        Log.d(debugTag, "Heading Error: " + currentPoseHeadingError);
+        if (debugOn) Log.d(debugTag, "Heading Error: " + currentPoseHeadingError);
 
         if (currentPoseHeadingError > headingAngleTolerance){
-            Log.d(debugTag, "Starting turn...");
+            if (debugOn) Log.d(debugTag, "Starting turn...");
 
             turnToFieldHeading(currentPose, turnSpeed, motorList);
         }
@@ -634,7 +678,8 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
      * @param currentPose
      * @param alliance
      ***********************************************************************/
-    public void executePostMoveActivity(TrackingPose currentPose, ArrayList<DcMotor> motorList, Alliance alliance){
+    public void executePostMoveActivity(TrackingPose currentPose, Alliance alliance){
+        ArrayList<DcMotor> motorList = getDriveMotors();
         Pose targetPose = currentPose.getTargetPose();
         Pose.PostMoveActivity activity = targetPose.getPostMoveActivity();
         if (activity == Pose.PostMoveActivity.LOWER_RAKE){
@@ -643,7 +688,7 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
             raiseRake();
         } else if (activity == Pose.PostMoveActivity.SCAN_FOR_SKYSTONE){
             setLifterHeightToGrabStone();
-            observeQuarry(currentPose, motorList);
+            observeQuarry(currentPose);
             //this is in main loop
             //deliverSkyStonesToBuildingZone(currentPose, motorList, alliance);
 
@@ -690,6 +735,35 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
         rotate1ClawServo.setPosition(ROTATE1_CLAW_FORWARD);
     }
 
+    protected TrackingPose surveilQuarry(Alliance alliance, TrackingPose currentPose, StopWatch overallTime){
+        boolean debugOn = true;
+        String logTag = "BTI_surveyQuarry";
+
+        ArrayList<QuarryStone> observedQuarryStones = new ArrayList<>();
+        assignObservedQuarryStones(alliance, observedQuarryStones,1);
+
+
+        recordQuarryObservations(observedQuarryStones.get(0), observedQuarryStones.get(1)
+                , observedQuarryStones.get(2), alliance);
+        if (debugOn) Log.d(logTag, "Quarry Observed " + overallTime.toString());
+
+        TrackingPose endPose = currentPose;
+        if(QuarryStone.getCountSkyStones() == 0 && QuarryStone.getCountObserved() <= 1) {
+            //If didn't see more than one stone, move right a little and try again
+            if (debugOn) Log.d(logTag, "SkyStone not identified, extending search..." + QuarryStone.getCountObserved() +
+                    " stone's observed");
+            endPose = travelToNextPose(currentPose);
+            assignObservedQuarryStones(alliance, observedQuarryStones,1);
+
+            recordQuarryObservations(observedQuarryStones.get(0), observedQuarryStones.get(1)
+                    , observedQuarryStones.get(2), alliance);
+        }
+
+        //  TODO:  Improve this logic for inclusion of second vantage point
+        determineSkyStonePattern(observedQuarryStones.get(0), observedQuarryStones.get(1));
+        return endPose;
+    }
+
     protected void assignObservedQuarryStones(Alliance alliance, ArrayList<QuarryStone> observedQuarryStones, int vantagePoint){
         QuarryStone firstStone;
         QuarryStone secondStone;
@@ -723,7 +797,7 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
         observedQuarryStones.add(thirdStone);
     }
 
-    protected void observeQuarry(TrackingPose currentPose, ArrayList<DcMotor> motorList) {
+    protected void observeQuarry(TrackingPose currentPose) {
         //Based on the Pose x coordinate, determine which stones are being viewed
         QuarryStone firstStone;
         QuarryStone secondStone;
@@ -752,7 +826,7 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
      */
     protected void recordQuarryObservations(QuarryStone firstStone, QuarryStone secondStone){
         int numObservations = 0;
-        long timeout = 2500L;
+        long timeout = 2000L;
         StopWatch timer = new StopWatch();
 
         if (tfod != null) {
@@ -795,7 +869,7 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
 
     protected void recordQuarryObservations(QuarryStone firstStone, QuarryStone secondStone, QuarryStone thirdStone, Alliance alliance){
         int numObservations = 0;
-        long timeout = 3000L;
+        long timeout = 2000L;
         StopWatch timer = new StopWatch();
 
         if (tfod != null) {
@@ -934,6 +1008,61 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
         return skyStone;
     }
 
+    protected TrackingPose possessSkyStone(TrackingPose endPose, Alliance alliance, StopWatch overallTime){
+        //  grab a skystone
+        boolean debugOn = true;
+        String logTag = "BTI_possessSkyStone";
+        endPose = driveToSkyStone(endPose, alliance);
+        if (debugOn) Log.d(logTag, "....COMPLETED Drive to Skystone " + overallTime.toString());
+        if (debugOn) Log.d(logTag, "endPose Position:" + endPose.toString());
+
+        if (debugOn) Log.d(logTag, "Refining position to stone...");
+        endPose = refinePosition(FieldObject.QUARRY_STONE, endPose, overallTime);
+
+        if (debugOn) Log.d(logTag, "...COMPLETED refining position to stone " + overallTime.toString());
+        autoGrabBlockNoMovement(getDriveMotors());
+        return endPose;
+    }
+
+    protected TrackingPose moveBackToClearQuarry(TrackingPose endPose, Alliance alliance, StopWatch overallTime){
+        boolean debugOn = true;
+        String logTag = "BTI_moveBackToClearQ";
+
+        if (debugOn) Log.d(logTag, "Moving back to clear Quarry...");
+
+        //**  Move back a little to clear quarry
+        double signYCoord = (alliance == Alliance.BLUE) ? 1.0 : -1.0;
+        double backtrackDist = 10.0 * signYCoord;
+        Pose startPose = new Pose (endPose.getX(), endPose.getY(), endPose.getHeading());
+
+        //Modified in V2 to execute the turn prior to driving to quarry
+        Pose targetPose = new Pose (endPose.getX(), endPose.getY() + backtrackDist, 0.0);
+        TrackingPose currentPose = new TrackingPose(startPose, targetPose, endPose.getInitialGyroOffset());
+        endPose = travelToNextPose(currentPose);
+        if (debugOn) Log.d(logTag, "...COMPLETED MOVE BACK " + overallTime.toString());
+        if (debugOn) Log.d(logTag, endPose.toString());
+
+        //Execute the turn towards back wall defined above
+        correctHeading(endPose);
+
+        return endPose;
+    }
+
+    protected TrackingPose travelUnderBridgeToFoundation(TrackingPose endPose, Alliance alliance, StopWatch overallTime){
+        boolean debugOn = true;
+        String logTag = "BTI_travelUnderBridge";
+
+        //Travel under bridge toward foundation
+        //But need to lift arm first, so to to  PoseAfterPlaceSkystone
+        if (debugOn) Log.d(logTag, "Getting tracking pose across bridge ");
+        TrackingPose currentPose = getTrackingPoseAcrossBridge(endPose);  //Set course
+        if (debugOn) Log.d(logTag, "~~~~~~~~~~~~~Driving across bridge ");
+        endPose = travelToNextPose(currentPose);     //Actually drive
+        if (debugOn) Log.d(logTag, "Travel across bridge completed, Location: " + endPose.toString());
+        if (debugOn) Log.d(logTag, "overallTime: "  + overallTime.toString());
+
+        return endPose;
+    }
     protected TrackingPose deliverSkyStonesToBuildingZone(TrackingPose endPose, ArrayList<DcMotor> motorList, Alliance alliance){
         /**
          * Drive from current location to the next SkyStone
@@ -951,11 +1080,11 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
         Log.d(logTag, "Getting tracking pose to skystone");
         TrackingPose currentPose = getTrackingPoseToSkyStone(skyStone, endPose, alliance);  //Set course
         Log.d(logTag, "~~~~~~~~~~~~~Driving to skyStone");
-        endPose = travelToNextPose(currentPose, motorList);     //Actually drive
+        endPose = travelToNextPose(currentPose);     //Actually drive
         Log.d(logTag, "SkyStone travel completed, Location: " + currentPose.toString());
 
         //**  Correct Heading
-        correctHeading(endPose, motorList);
+        correctHeading(endPose);
         //**  Now perform the autoGrab function
         autoGrabBlockNoMovement(motorList);
 
@@ -965,41 +1094,41 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
         Pose startPose = new Pose (endPose.getX(), endPose.getY(), endPose.getHeading());
         Pose targetPose = new Pose (endPose.getX(), endPose.getY() + backtrackDist, endPose.getHeading());
         currentPose = new TrackingPose(startPose, targetPose, endPose.getInitialGyroOffset());
-        endPose = travelToNextPose(currentPose, motorList);
+        endPose = travelToNextPose(currentPose);
 
 
         //Travel under bridge to foundation
         Log.d(logTag, "Getting tracking pose across bridge");
         currentPose = getTrackingPoseAcrossBridge(endPose);  //Set course
         Log.d(logTag, "~~~~~~~~~~~~~Driving across bridge");
-        endPose = travelToNextPose(currentPose, motorList);     //Actually drive
+        endPose = travelToNextPose(currentPose);     //Actually drive
         Log.d(logTag, "Travel across bridge completed, Location: " + currentPose.toString());
 
         //Now spin toward Foundation to dump stone
         setLifterHeightToPlaceStone();  //raise lifter to place on foundation
 
         //**  Correct Heading
-        correctHeading(endPose, motorList);
+        correctHeading(endPose);
 
         //  Move forward a little bit more to dump block on foundation
         Log.d(logTag, "Getting tracking pose to foundation");
         currentPose = getTrackingPoseToFoundation(endPose);  //Set course
         Log.d(logTag, "~~~~~~~~~~~~~Driving to foundation");
-        endPose = travelToNextPose(currentPose, motorList);     //Actually drive
+        endPose = travelToNextPose(currentPose);     //Actually drive
         Log.d(logTag, "Foundation travel completed, Location: " + currentPose.toString());
 
         //**  Correct Heading
-        correctHeading(endPose, motorList);
+        correctHeading(endPose);
 
         //  Dump stone
-        autoReleaseStone(motorList);
+        autoReleaseStone(Speed.SLOW);
 
 
         //  move back a little to clear foundation plate
         Log.d(logTag, "Backing away from foundation plate");
         currentPose = getTrackingPoseAcrossBridge(endPose);  //Set course
         Log.d(logTag, "~~~~~~~~~~~~~Driving across bridge");
-        endPose = travelToNextPose(currentPose, motorList);     //Actually drive
+        endPose = travelToNextPose(currentPose);     //Actually drive
         Log.d(logTag, "Backed away, ready to drop lifter: " + currentPose.toString());
 
         //drop lifter
@@ -1008,32 +1137,48 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
         return endPose;
     }
 
-    protected TrackingPose driveToSkyStone(TrackingPose endPose, ArrayList<DcMotor> motorList, Alliance alliance){
+    protected TrackingPose backAwayFromFoundation(TrackingPose endPose, Alliance alliance, StopWatch overallTime){
+        boolean debugOn = true;
+        String logTag = "BTI_backAwayFromF";
+
+        if (debugOn) Log.d(logTag, "Backing away from foundation plate");
+        TrackingPose currentPose = getTrackingPoseAfterPlaceSkystone(endPose, alliance);  //Set course
+        if (debugOn) Log.d(logTag, "~~~~~~~~~~~~~Driving across bridge");
+        endPose = travelToNextPose(currentPose);     //Actually drive
+        if (debugOn) Log.d(logTag, "Backed away, ready to drop lifter: " + currentPose.toString());
+        if (debugOn) Log.d(logTag, "overallTime: "  + overallTime.toString());
+
+        return endPose;
+    }
+
+    protected TrackingPose driveToSkyStone(TrackingPose endPose, Alliance alliance){
         /**
          * Drive from current location to the next SkyStone
          */
 
         String logTag = "BTI_driveToSkyStone";
+        boolean debugOn = true;
+        if (debugOn) Log.d(logTag, "starting driveToSkyStone, current Position " + endPose.toString());
 
-        //Move the arm to correct height to grab stone
-        setLifterHeightToGrabStone();
+        ArrayList<DcMotor> driveMotors= getDriveMotors();
 
         //Retrieve a skystone from those observed.  If not observed, select random
         QuarryStone skyStone = getTargetSkyStone();
 
         //Travel to the SkyStone
-        Log.d(logTag, "Getting tracking pose to skystone");
+        if (debugOn) Log.d(logTag, "Getting tracking pose to skystone");
         TrackingPose currentPose = getTrackingPoseToSkyStone(skyStone, endPose, alliance);  //Set course
-        Log.d(logTag, "~~~~~~~~~~~~~Driving to skyStone at " + currentPose.getTargetPose().toString());
-        endPose = travelToNextPose(currentPose, motorList);     //Actually drive
-        Log.d(logTag, "SkyStone travel completed, Location: " + currentPose.toString());
+        if (debugOn) Log.d(logTag, "~~~~~~~~~~~~~Driving to skyStone at " + currentPose.getTargetPose().toString());
+        endPose = travelToNextPose(currentPose);     //Actually drive
+        if (debugOn) Log.d(logTag, "SkyStone travel completed, Location: " + endPose.toString());
 
         //**  Correct Heading
-        correctHeading(endPose, motorList);
+        correctHeading(endPose);
+
         return endPose;
     }
 
-    protected void refinePosition(FieldObject fieldObject) {
+    protected TrackingPose refinePosition(FieldObject fieldObject, TrackingPose trackingPose, StopWatch overallTime) {
         double currentDistance = frontDistSensor.getDistance(DistanceUnit.INCH);
         double correctionSpeed = 0.15;
         double minRangeBlock = fieldObject.getMinDistance();
@@ -1043,8 +1188,9 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
         long timeout = 1500L;
         boolean isTimedOut = false;
 
+        boolean debugOn = true;
         String logTag = "BTI_refinePosition";
-        Log.d(logTag, "Refining position to " + fieldObject.name());
+        if (debugOn) Log.d(logTag, "Refining position to " + fieldObject.name());
 
         while (opModeIsActive() && !inRange && !isTimedOut) {
             if (currentDistance > maxRangeBlock) {
@@ -1059,41 +1205,18 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
             isTimedOut = (timer.getElapsedTimeMillis() >= timeout) ? true : false;
 
         }
-        EncoderTracker.updateEncoderCurrentClicks();
         String resultString = (isTimedOut) ? "FAILURE - Timed out" : "SUCCESS";
+        //  This updates encoders without calculating field position, maybe not correct
+        //  Perhaps should use getNewPose instead
+        //EncoderTracker.updateEncoderCurrentClicks();
+        //  Alternate would be this
+        EncoderTracker.getNewPose(trackingPose);
 
-        Log.d(logTag, "COMPLETED Refining position to " + fieldObject.name() +
+        if (debugOn) Log.d(logTag, "COMPLETED Refining position to " + fieldObject.name() +
                 " Result: " + resultString);
-    }
+        if (debugOn) Log.d(logTag, "Overall Time: " + overallTime.toString());
 
-    protected void refinePosition(double minRangeBlock, double maxRangeBlock) {
-        double currentDistance = frontDistSensor.getDistance(DistanceUnit.INCH);
-        double correctionSpeed = 0.15;
-        boolean inRange = (currentDistance > minRangeBlock && currentDistance < maxRangeBlock) ? true : false;
-        StopWatch timer = new StopWatch();
-        long timeout = 1500L;
-        boolean isTimedOut = false;
-
-        String logTag = "BTI_refinePosition";
-        Log.d(logTag, "Refining position to between " + minRangeBlock + " < d < " + maxRangeBlock);
-
-        while (opModeIsActive() && !inRange && !isTimedOut) {
-            if (currentDistance > maxRangeBlock) {
-                // move forward
-                translateRobot(TranslateDirection.FORWARD, correctionSpeed);
-            } else if (currentDistance < minRangeBlock) {
-                // move backwards
-                translateRobot(TranslateDirection.BACKWARD, correctionSpeed);
-            }
-            currentDistance = frontDistSensor.getDistance(DistanceUnit.INCH);
-            inRange = (currentDistance > minRangeBlock && currentDistance < maxRangeBlock) ? true : false;
-            isTimedOut = (timer.getElapsedTimeMillis() >= timeout) ? true : false;
-
-        }
-        EncoderTracker.updateEncoderCurrentClicks();
-        String resultString = (isTimedOut) ? "FAILURE - Timed out" : "SUCCESS";
-
-        Log.d(logTag, "COMPLETED Refining position to " + " Result: " + resultString);
+        return trackingPose;
     }
 
 
@@ -1111,7 +1234,12 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
         //Determine if the offset should be added or subtracted based on alliance
         double offsetSign = (alliance == Alliance.BLUE) ? 1.0 : -1.0;
         double stoneY = skyStone.getY() + (offsetDistance * offsetSign);  //retrieve y dimension
-        double stoneHeading = endPose.getTargetPose().getHeading();  //retrieve heading
+        double stoneHeading;
+        if (alliance == Alliance.RED){
+            stoneHeading = 90.0;
+        } else {
+            stoneHeading = -90.0;
+        }
 
         //Create the beginning and end poses for the move
         Pose startPose = new Pose(endPose.getX(), endPose.getY(), endPose.getHeading());
@@ -1132,6 +1260,7 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
         Log.d(logTag, "Creating tracking pose across bridge COMPLETED!");
         return new TrackingPose(startPose, acrossBridge,endPose.getInitialGyroOffset());
     }
+
 
     protected TrackingPose getTrackingPoseAfterPlaceSkystone(TrackingPose endPose, Alliance alliance){
         String logTag = "BTI_getTracking.Place.";
@@ -1156,6 +1285,18 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
         Pose foundationPlate = foundation.getSkyStoneDumpingPose(offsetDistance);
         Log.d(logTag, "Creating tracking pose to Foundation COMPLETED!");
         return new TrackingPose(startPose, foundationPlate,endPose.getInitialGyroOffset());
+    }
+
+    protected TrackingPose parkUnderBridge(TrackingPose endPose, Alliance alliance, StopWatch overallTime){
+        boolean debugOn = true;
+        String logTag = "BTI_parkUnderBridge";
+        TrackingPose currentPose = getTrackingPoseToBridgePark(endPose, alliance);
+        if (debugOn) Log.d(logTag, "~~~~~~~~~~~~~parking under bridge");
+        endPose = travelToNextPose(currentPose);     //Actually drive
+        if (debugOn) Log.d(logTag, "...Parked under bridge " + endPose.toString());
+        if (debugOn) Log.d(logTag, "Time " + overallTime.toString());
+
+        return endPose;
     }
 
     protected TrackingPose getTrackingPoseToBridgePark(TrackingPose endPose, Alliance alliance){

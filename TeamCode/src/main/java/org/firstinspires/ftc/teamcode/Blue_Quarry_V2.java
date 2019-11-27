@@ -10,15 +10,15 @@ import java.util.ArrayList;
 import static java.lang.String.format;
 
 @Autonomous
-public class Red_Quarry extends eBotsAuton2019 {
+public class Blue_Quarry_V2 extends eBotsAuton2019 {
 
 
     /****************************************************************
      //******    CONFIGURATION PARAMETERS
      //***************************************************************/
-    private Alliance alliance = Alliance.RED;
+    private Alliance alliance = Alliance.BLUE;
     private FieldSide fieldSide = FieldSide.QUARRY;
-    private Speed speedConfig = Speed.SLOW;
+    private Speed speedConfig = Speed.FAST;
     private GyroSetting gyroConfig = GyroSetting.EVERY_LOOP;
     private SoftStart softStartConfig = SoftStart.MEDIUM;
     private Accuracy accuracyConfig = Accuracy.STANDARD;
@@ -64,17 +64,7 @@ public class Red_Quarry extends eBotsAuton2019 {
         //  It also has an error object which tracks it's status relative to targetPose
 
         //Initialize Poses
-        Pose startPose;
-        if (fieldSide == FieldSide.QUARRY){
-            startPose = new Pose(Pose.StartingPose.QUARRY);
-        } else {
-            startPose = new Pose(Pose.StartingPose.FOUNDATION);
-        }
-
-        if (alliance == Alliance.RED){
-            applyRedAlliancePoseTransform(startPose);
-        }
-
+        Pose startPose = new Pose(Pose.StartingPose.QUARRY);
         //  This target pose is used if SkyStone not found in first scan
         Pose targetPose = new Pose(startPose.getX()-6.5, startPose.getY(), startPose.getHeading());
         TrackingPose currentPose = new TrackingPose(startPose, targetPose);
@@ -110,36 +100,38 @@ public class Red_Quarry extends eBotsAuton2019 {
         setLifterHeightToGrabStone();
         Log.d(logTag, "Ready to grab stone " + overallTime.toString());
 
-        ArrayList<QuarryStone> observedQuarryStones = new ArrayList<>();
-        assignObservedQuarryStones(alliance, observedQuarryStones,1);
-
-
-        recordQuarryObservations(observedQuarryStones.get(0), observedQuarryStones.get(1)
-                , observedQuarryStones.get(2), alliance);
+        //Observe quarry
+        QuarryStone firstStone = QuarryStone.getQuarryStone(QuarryStone.StoneLocation.TWO);
+        QuarryStone secondStone = QuarryStone.getQuarryStone(QuarryStone.StoneLocation.THREE);
+        QuarryStone thirdStone = QuarryStone.getQuarryStone(QuarryStone.StoneLocation.FOUR);
+        recordQuarryObservations(firstStone, secondStone, thirdStone, alliance);
         Log.d(logTag, "Quarry Observed " + overallTime.toString());
 
         if(QuarryStone.getCountSkyStones() == 0 && QuarryStone.getCountObserved() <= 1) {
             //If didn't see more than one stone, move right a little and try again
             Log.d(logTag, "SkyStone not identified, extending search..." + QuarryStone.getCountObserved() +
                     " stone's observed");
-            endPose = travelToNextPose(currentPose, motorList);
-            assignObservedQuarryStones(alliance, observedQuarryStones,1);
+            endPose = travelToNextPose(currentPose);
+            firstStone = QuarryStone.getQuarryStone(QuarryStone.StoneLocation.ONE);
+            secondStone = QuarryStone.getQuarryStone(QuarryStone.StoneLocation.TWO);
+            thirdStone = QuarryStone.getQuarryStone(QuarryStone.StoneLocation.THREE);
 
-            recordQuarryObservations(observedQuarryStones.get(0), observedQuarryStones.get(1)
-                    , observedQuarryStones.get(2), alliance);
+            recordQuarryObservations(firstStone, secondStone, thirdStone, alliance);
+
         }
 
-        //  TODO:  Improve this logic for inclusion of second vantage point
-        determineSkyStonePattern(observedQuarryStones.get(0), observedQuarryStones.get(1));
+        determineSkyStonePattern(firstStone, secondStone);
+
+
 
 
         //  grab a skystone
-        endPose = driveToSkyStone(endPose, motorList, alliance);
+        endPose = driveToSkyStone(endPose, alliance);
         Log.d(logTag, "....COMPLETED Drive to Skystone " + overallTime.toString());
         Log.d(logTag, "endPose Position:" + endPose.toString());
 
         Log.d(logTag, "Refining position to stone...");
-        refinePosition(FieldObject.QUARRY_STONE);
+        refinePosition(FieldObject.QUARRY_STONE, endPose, new StopWatch());
         Log.d(logTag, "...COMPLETED refining position to stone " + overallTime.toString());
         autoGrabBlockNoMovement(getDriveMotors());
 
@@ -149,57 +141,47 @@ public class Red_Quarry extends eBotsAuton2019 {
         double signYCoord = (alliance == Alliance.BLUE) ? 1.0 : -1.0;
         double backtrackDist = 10.0 * signYCoord;
         startPose = new Pose (endPose.getX(), endPose.getY(), endPose.getHeading());
-        targetPose = new Pose (endPose.getX(), endPose.getY() + backtrackDist, endPose.getHeading());
+
+        //Modified in V2 to execute the turn prior to driving to quarry
+        targetPose = new Pose (endPose.getX(), endPose.getY() + backtrackDist, 0.0);
+
         currentPose = new TrackingPose(startPose, targetPose, endPose.getInitialGyroOffset());
-        endPose = travelToNextPose(currentPose, motorList);
+        endPose = travelToNextPose(currentPose);
         Log.d(logTag, "...COMPLETED MOVE BACK");
         Log.d(logTag, endPose.toString());
 
+        //Execute the turn towards back wall defined above
+        correctHeading(endPose);
 
-        //Travel under bridge to foundation
-        Log.d(logTag, "Getting tracking pose across bridge");
+        //Travel under bridge toward foundation
+        //But need to lift arm first, so to to  PoseAfterPlaceSkystone
+        Log.d(logTag, "Getting tracking pose across bridge - PoseAfterPlaceSkystone");
         currentPose = getTrackingPoseAcrossBridge(endPose);  //Set course
-        Log.d(logTag, "~~~~~~~~~~~~~Driving across bridge");
-        endPose = travelToNextPose(currentPose, motorList);     //Actually drive
+        Log.d(logTag, "~~~~~~~~~~~~~Driving across bridge - PoseAfterPlaceSkystone");
+        endPose = travelToNextPose(currentPose);     //Actually drive
         Log.d(logTag, "Travel across bridge completed, Location: " + endPose.toString());
         Log.d(logTag, "overallTime: "  + overallTime.toString());
 
-        //Now spin toward Foundation to dump stone
         setLifterHeightToPlaceStone();  //raise lifter to place on foundation
 
         //**  Correct Heading
-        correctHeading(endPose, motorList);
+        correctHeading(endPose);
 
-        //Now try to refine position
-        /*
-        //  Move forward a little bit more to dump block on foundation
-        Log.d(logTag, "Getting tracking pose to foundation");
-        currentPose = getTrackingPoseToFoundation(endPose);  //Set course
-        Log.d(logTag, "~~~~~~~~~~~~~Driving to foundation");
-        endPose = travelToNextPose(currentPose, motorList);     //Actually drive
-        Log.d(logTag, "Foundation travel completed, Location: " + currentPose.toString());
-        Log.d(logTag, "overallTime: "  + overallTime.toString());
-
-        //**  Correct Heading
-        correctHeading(endPose, motorList);
-        */
+        //**  Refine position to foundation
         Log.d(logTag, "Refining position to foundation...");
-        refinePosition(FieldObject.FOUNDATION);
+        refinePosition(FieldObject.FOUNDATION, endPose, new StopWatch());
         Log.d(logTag, "...COMPLETED Refining position to foundation " + overallTime.toString());
 
 
         //  Dump stone
-        autoReleaseStone(motorList);
+        autoReleaseStone(Speed.SLOW, overallTime);
         Log.d(logTag, "Stone released "  + overallTime.toString());
 
-
-        //  move back a little to clear foundation plate
-        //refinePosition(20.0, 25.0);
 
         Log.d(logTag, "Backing away from foundation plate");
         currentPose = getTrackingPoseAfterPlaceSkystone(endPose, alliance);  //Set course
         Log.d(logTag, "~~~~~~~~~~~~~Driving across bridge");
-        endPose = travelToNextPose(currentPose, motorList);     //Actually drive
+        endPose = travelToNextPose(currentPose);     //Actually drive
         Log.d(logTag, "Backed away, ready to drop lifter: " + currentPose.toString());
         Log.d(logTag, "overallTime: "  + overallTime.toString());
 
@@ -210,13 +192,16 @@ public class Red_Quarry extends eBotsAuton2019 {
         //  Now park under the bridge
         currentPose = getTrackingPoseToBridgePark(currentPose, alliance);
         Log.d(logTag, "~~~~~~~~~~~~~parking under bridge");
-        endPose = travelToNextPose(currentPose, motorList);     //Actually drive
+        endPose = travelToNextPose(currentPose);     //Actually drive
         Log.d(logTag, "...Parked under bridge " + endPose.toString());
         Log.d(logTag, "Time " + overallTime.toString());
 
 
+        //Now lower rake to ensure is parked under bridge
+        lowerRake();
+
         //  Verify all drive motors are stopped
-        if(!simulateMotors) stopMotors(motorList);
+        if(!simulateMotors) stopMotors();
 
         Log.d(logTag, "Closing camera");
         //  Close vuforia webcam interface

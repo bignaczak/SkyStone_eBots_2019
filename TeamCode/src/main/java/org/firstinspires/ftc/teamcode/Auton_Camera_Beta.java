@@ -55,7 +55,7 @@ public class Auton_Camera_Beta extends eBotsAuton2019 {
         //***************************************************************
 
         wayPoses = new ArrayList<>();
-        setWayPoses(wayPoses, alliance, fieldSide);
+        setWayPoses(wayPoses, alliance, fieldSide, DelayedStart.NO);
         ListIterator<Pose> iterator = wayPoses.listIterator();
 
 
@@ -113,15 +113,15 @@ public class Auton_Camera_Beta extends eBotsAuton2019 {
         //  MAKE FIRST MOVE
         //***************************************************************
         //TODO: See if endPose can be eliminated and just keep using currentPose (I think endPose is a pointer to currentPose)
-        TrackingPose endPose = travelToNextPose(currentPose, motorList);
+        TrackingPose endPose = travelToNextPose(currentPose);
         Log.d(logTag, "completed first leg " + overallTime.toString());
 
         //Correct heading angle if not within tolerance limits set in accuracyConfig
         Log.d(logTag, "correcting angle...");
-        correctHeading(currentPose, motorList);
+        correctHeading(currentPose);
 
         //Perform actions specified in the targetPose of the path leg that was just completed
-        executePostMoveActivity(currentPose, motorList, alliance);
+        executePostMoveActivity(currentPose, alliance);
         Log.d(logTag, "completed post move activity for first leg");
         int legCount = 1;
         Double currentPoseHeadingError;
@@ -130,7 +130,7 @@ public class Auton_Camera_Beta extends eBotsAuton2019 {
 
             //Correct heading angle if not within tolerance limits set in accuracyConfig
             Log.d(logTag, "correcting angle...");
-            correctHeading(currentPose, motorList);
+            correctHeading(currentPose);
 
             //Set ending of previous leg as the starting pose for new leg
             //  Position and pose are taken from the TrackingPose object returned by travelToNextPose
@@ -169,12 +169,12 @@ public class Auton_Camera_Beta extends eBotsAuton2019 {
             Log.d(logTag, "...tracking pose created");
 
             Log.d(logTag, "~~~~~~~~~~~~~Starting Leg " + ++legCount);
-            endPose = travelToNextPose(currentPose, motorList);
+            endPose = travelToNextPose(currentPose);
             Log.d(logTag, "Completed leg " + legCount + " : " + overallTime.toString());
 
-            correctHeading(currentPose, motorList);
+            correctHeading(currentPose);
             //Perform actions specified in the targetPose of the path leg that was just completed
-            executePostMoveActivity(currentPose, motorList, alliance);
+            executePostMoveActivity(currentPose, alliance);
             Log.d(logTag, "completed post move activity " + overallTime.toString());
 
             Log.d(logTag, "~~~~~~~~~~~End of Loop for poses~~~~~~~~~~~~");
@@ -186,17 +186,17 @@ public class Auton_Camera_Beta extends eBotsAuton2019 {
         currentPose = deliverSkyStonesToBuildingZone(endPose, motorList, alliance);
         Log.d(logTag, "first stone delivered " + overallTime.toString());
 
-        correctHeading(currentPose, motorList);
+        correctHeading(currentPose);
 
         //  Now park under the bridge
         currentPose = getTrackingPoseToBridgePark(currentPose, alliance);
         Log.d(logTag, "~~~~~~~~~~~~~parking under bridge");
-        endPose = travelToNextPose(currentPose, motorList);     //Actually drive
+        endPose = travelToNextPose(currentPose);     //Actually drive
 
         Log.d(logTag, "parked under bridge " + overallTime.toString());
 
         //  Verify all drive motors are stopped
-        if(!simulateMotors) stopMotors(motorList);
+        if(!simulateMotors) stopMotors();
 
         Log.d(logTag, "Closing camera");
         //  Close vuforia webcam interface

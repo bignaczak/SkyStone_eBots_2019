@@ -2,7 +2,6 @@ package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.DigitalChannel;
 
 import java.util.ArrayList;
 
@@ -89,8 +88,6 @@ public class TeleOp_Competition extends eBotsOpMode2019 {
         //  Wait for the game to start(driver presses PLAY)
         //***************************************************************
         waitForStart();
-        //  To protect for the case that the arm isn't extended, first raise lifter
-        raiseLifterToExtendArm();
         //  Then find the zero point
         findLifterZero();
 
@@ -199,7 +196,7 @@ public class TeleOp_Competition extends eBotsOpMode2019 {
                 autoGrabStone(motorList);
             } else if(gamepad2.left_bumper && gamepad2.right_trigger > 0.3){
                 //----------Initiate AutoRelease----------------
-                autoReleaseStone(motorList);
+                autoReleaseStone(eBotsAuton2019.Speed.SLOW);
             }
             else rollerGripper.setPower(0.0);
 

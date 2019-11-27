@@ -3,7 +3,6 @@ package org.firstinspires.ftc.teamcode;
 import android.util.Log;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
-import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.hardware.DcMotor;
 
 import java.util.ArrayList;
@@ -11,14 +10,14 @@ import java.util.ArrayList;
 @Autonomous
 
 
-public class Blue_Foundation extends eBotsAuton2019 {
+public class Blue_Foundation_V2 extends eBotsAuton2019 {
 
     /****************************************************************
     //******    CONFIGURATION PARAMETERS
     //***************************************************************/
     private Alliance alliance = Alliance.BLUE;
-    private FieldSide fieldSide = FieldSide.FOUNDATION;
-    private Speed speedConfig = Speed.SLOW;
+    private FieldSide fieldSide = FieldSide.FOUNDATION_V2;
+    private Speed speedConfig = Speed.MEDIUM;
     private GyroSetting gyroConfig = GyroSetting.EVERY_LOOP;
     private SoftStart softStartConfig = SoftStart.MEDIUM;
     private Accuracy accuracyConfig = Accuracy.STANDARD;
@@ -52,7 +51,7 @@ public class Blue_Foundation extends eBotsAuton2019 {
 
         Integer wayPoseIndex = 1;
         wayPoses = new ArrayList<>();
-        setWayPoses(wayPoses, alliance, fieldSide);
+        setWayPoses(wayPoses, alliance, fieldSide, DelayedStart.NO);
         //  *********  INITIALIZE FOR FIRST PASS THROUGH LOOP   *****************
         //  Create currentPose, which is the tracked position from start to target
         //  This is a special type of pose that is intended to track the path of travel
@@ -101,16 +100,16 @@ public class Blue_Foundation extends eBotsAuton2019 {
         //  MAKE FIRST MOVE
         //***************************************************************
 
-        TrackingPose endPose = travelToNextPose(currentPose, motorList);
+        TrackingPose endPose = travelToNextPose(currentPose);
         wayPoseIndex++;
 
         Double currentPoseHeadingError;
         while(opModeIsActive() && wayPoseIndex< wayPoses.size()) {
 
             //Correct heading angle if not within tolerance limits set in accuracyConfig
-            correctHeading(currentPose, motorList);
+            correctHeading(currentPose);
             //Perform actions specified in the targetPose of the path leg that was just completed
-            executePostMoveActivity(currentPose,motorList, alliance);
+            executePostMoveActivity(currentPose, alliance);
 
             //Set ending of previous leg as the starting pose for new leg
             //  Position and pose are taken from the TrackingPose object returned by travelToNextPose
@@ -127,15 +126,15 @@ public class Blue_Foundation extends eBotsAuton2019 {
             Log.d(logTag, "~~~~~~~~~~~~~Starting Leg " + wayPoseIndex.toString() + " to " +
                     currentPose.getTargetPose().toString());
             Log.d(logTag, "Start Position " + currentPose.toString());
-            endPose = travelToNextPose(currentPose, motorList);
+            endPose = travelToNextPose(currentPose);
             Log.d(logTag, "Leg completed, new position " + endPose.toString());
             wayPoseIndex++;
         }
         Log.d(logTag, "All Legs Completed, current Position " + endPose.toString());
-        correctHeading(currentPose, motorList);
+        correctHeading(currentPose);
 
         //  Verify all drive motors are stopped
-        if(!simulateMotors) stopMotors(motorList);
+        if(!simulateMotors) stopMotors();
 
         //  Close vuforia webcam interface
         if (tfod != null) {

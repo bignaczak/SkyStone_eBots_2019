@@ -45,7 +45,7 @@ public class Auton_Detect extends eBotsAuton2019 {
 
         Integer wayPoseIndex = 1;
         wayPoses = new ArrayList<>();
-        setWayPoses(wayPoses, alliance, fieldSide);
+        setWayPoses(wayPoses, alliance, fieldSide, DelayedStart.NO);
         //  *********  INITIALIZE FOR FIRST PASS THROUGH LOOP   *****************
         //  Create currentPose, which is the tracked position from start to target
         //  This is a special type of pose that is intended to track the path of travel

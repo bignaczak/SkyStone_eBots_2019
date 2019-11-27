@@ -580,7 +580,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         StopWatch timer = new StopWatch();
 
         //  1) Stop all drive motors
-        stopMotors(motorList);
+        stopMotors();
 
         //  2) lower lifter while moving grabber wheel
         //  Start roller
@@ -609,47 +609,69 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         lifter.setTargetPosition(lifterHeightDrive);
     }
 
-    protected void autoReleaseStone(ArrayList<DcMotor> motorList){
-        /**
-         * 0) Stop all motors
-         * 1) Lift Arm a little more than a block
-         * 2) Reverse rollerGripper motor to release block
-         */
-        //  0) Stop all motor
-        stopMotors(motorList);
-
-        //  1) Lift Arm a little more than a block to make sure you clear when moving away
-
-        int lifterAutoReleaseIncrement = (int) (STONE_HEIGHT_CLICKS * 1.15);
-        final Double rollerGripperSpeed = 0.35;  //slow release speed
-        final Double liftPowerLevelRelease = 0.25;
-        Integer currentLifterPositionError;
-        Long timeout = 1750L;
-
+    protected void autoReleaseStone(eBotsAuton2019.Speed speed) {
         StopWatch timer = new StopWatch();
-        timer.startTimer();
-
-
-        lifterPosition = lifter.getCurrentPosition() + lifterAutoReleaseIncrement;
-        lifter.setTargetPosition(lifterPosition);
-        lifter.setPower(liftPowerLevelRelease);  //Try and raise slowly
-        currentLifterPositionError = lifterPosition - lifter.getCurrentPosition();
-
-        //  2) Reverse rollerGripper motor to release block
-        while (opModeIsActive() && Math.abs(currentLifterPositionError) > 50
-                && timer.getElapsedTimeMillis() < timeout){
-            rollerGripper.setPower(rollerGripperSpeed);
-            currentLifterPositionError = lifterPosition - lifter.getCurrentPosition();
-            processDriverControls();
-        }
-
-        //  Set power level back
-        lifter.setPower(lifterPowerLevel);
-        //turn off rollers
-        rollerGripper.setPower(0.0);
-
-
+        autoReleaseStone(speed, timer);
     }
+
+    protected void autoReleaseStone(eBotsAuton2019.Speed speed, StopWatch overallTime){
+    /**
+     * 0) Stop all motors
+     * 1) Lift Arm a little more than a block
+     * 2) Reverse rollerGripper motor to release block
+     */
+    double rollerGripperSpeed;
+    double liftPowerLevelRelease;
+    String logTag = "BTI_autoReleaseStone";
+    boolean debugOn = true;
+
+    if (debugOn) Log.d(logTag, "Starting autoReleaseStone, speed " + speed.name()
+            + " " + overallTime.toString());
+
+    if(speed == eBotsAuton2019.Speed.FAST){
+        rollerGripperSpeed = 0.8;  //slow release speed
+        liftPowerLevelRelease = 0.8;
+    } else {
+        rollerGripperSpeed = 0.35;  //slow release speed
+        liftPowerLevelRelease = 0.25;
+    }
+    int lifterAutoReleaseIncrement = (int) (STONE_HEIGHT_CLICKS * 1.15);
+
+    ArrayList<DcMotor> motorList = getDriveMotors();
+    //  0) Stop all motor
+    stopMotors();
+
+    //  1) Lift Arm a little more than a block to make sure you clear when moving away
+
+    int currentLifterPositionError;
+    long timeout = 1750L;
+
+    StopWatch timer = new StopWatch();
+    timer.startTimer();
+
+
+    lifterPosition = lifter.getCurrentPosition() + lifterAutoReleaseIncrement;
+    lifter.setTargetPosition(lifterPosition);
+    lifter.setPower(liftPowerLevelRelease);  //Try and raise slowly
+    currentLifterPositionError = lifterPosition - lifter.getCurrentPosition();
+
+    //  2) Reverse rollerGripper motor to release block
+    while (opModeIsActive() && Math.abs(currentLifterPositionError) > 50
+            && timer.getElapsedTimeMillis() < timeout){
+        rollerGripper.setPower(rollerGripperSpeed);
+        currentLifterPositionError = lifterPosition - lifter.getCurrentPosition();
+        processDriverControls();
+    }
+
+    //  Set power level back
+    lifter.setPower(lifterPowerLevel);
+    //turn off rollers
+    rollerGripper.setPower(0.0);
+
+    if (debugOn) Log.d(logTag, "Stone released " + overallTime.toString());
+
+
+}
 
     protected void processDriverControls(){
         //This first group is for basic navigation
@@ -840,7 +862,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
             autoGrabStone(driveMotors);
         } else if(gamepad2.left_bumper && gamepad2.right_bumper){
             //----------Initiate AutoRelease----------------
-            autoReleaseStone(driveMotors);
+            autoReleaseStone(eBotsAuton2019.Speed.SLOW, new StopWatch());
         }
         else rollerGripper.setPower(0.0);
     }
@@ -983,7 +1005,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
 
         }
         //Stop all the motors
-        stopMotors(motors);
+        stopMotors();
     }
 
     public void translateRobot(TranslateDirection direction, double speed){
@@ -1139,7 +1161,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         telemetry.update();
 
         //  Now stop
-        stopMotors(motors);
+        stopMotors();
     }
 
 
@@ -1169,8 +1191,9 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
             i++;
         }
     }
-    public void stopMotors(ArrayList<DcMotor> motors) {
+    public void stopMotors() {
 
+        ArrayList<DcMotor> motors = getDriveMotors();
         long stopTime = 150;
         long currentTime = System.nanoTime() / 1000000;
         for (long t = currentTime; t < (currentTime + stopTime); t = (System.nanoTime() / 1000000)) {
@@ -1320,7 +1343,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         if(Math.abs(headingError)> Math.toRadians(5)) {
             twistToAngle(Math.toDegrees(headingError), 0.2, motors);
         }
-        stopMotors(motors);
+        stopMotors();
     }
 
     public void performDriveStepUsingEncoders(ArrayList<DcMotor> motors, double driveAngle, double driveTime, double spinPower, double drivePower, double[] driveValues, double headingTarget) {
@@ -1374,7 +1397,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         if(Math.abs(headingError)> Math.toRadians(5)) {
             twistToAngle(Math.toDegrees(headingError), 0.2, motors);
         }
-        stopMotors(motors);
+        stopMotors();
     }
 
 
@@ -1536,7 +1559,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
             performDriveStepRunToPosition(motors, driveAngle, spinPower, drivePower, driveValues, encoderTargetValues);
 
             //Stop all motors
-            stopMotors(motors);
+            stopMotors();
         }else if(selectedDriveType.equalsIgnoreCase("TimedTranslateAndSpin")) {
             //Recalculate travel time using simplified method
             spinPower=requiredSpinDistance/(travelDistance+requiredSpinDistance);
@@ -2292,7 +2315,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
             }
 
             //Stop all motors
-            stopMotors(motors);
+            stopMotors();
             return this;
         }
 
@@ -2451,121 +2474,5 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         return outputString.toString();
     }
 
-    protected void setWayPoses(ArrayList<Pose> wayPoses, eBotsAuton2019.Alliance alliance, eBotsAuton2019.FieldSide fieldSide) {
-        /**  This function sets the wayPoses for blue side and then applies a
-         * transformation by mirroring about the X axis for position and pose
-         */
-
-        //These waypoints are for the blue side
-        if (fieldSide == eBotsAuton2019.FieldSide.FOUNDATION){
-            //Blue Foundation
-            wayPoses.add(new Pose(39.0, 60.0, 90.0));
-            //travel in the positive Y direction to midline
-            wayPoses.add(new Pose(50.0, 34.0, 90.0, Pose.PostMoveActivity.LOWER_RAKE));
-            //travel back 12 inches
-            wayPoses.add(new Pose(54.0, 56.0, 90.0, Pose.PostMoveActivity.RAISE_RAKE));
-            //travel to blue foundation start point
-            wayPoses.add(new Pose(22.0, 56.0, 90.0));
-            //travel back 12 inches
-            wayPoses.add(new Pose(22.0, 16.0, 90.0));
-            //travel to blue foundation start point
-            wayPoses.add(new Pose(48.0, 16.0, 90.0));
-            //travel to blue foundation start point
-            wayPoses.add(new Pose(48.0, 40.0, 90.0));
-            //move back a little
-            wayPoses.add(new Pose(48.0, 35.0, 90.0));
-            //move around foundation
-            wayPoses.add(new Pose(18.0, 35.0, 90.0));
-            //move near wall
-            wayPoses.add(new Pose(18.0, 60.0, 90.0));
-            //park in middle
-            wayPoses.add(new Pose(0.0, 60.0, 90.0));
-
-            //Park in the middle
-            //wayPoses.add(new Pose(-48.0, 0.0, 180.0));
-        } else if (fieldSide == eBotsAuton2019.FieldSide.QUARRY){
-            wayPoses.add(new Pose(Pose.StartingPose.BLUE_QUARRY));
-            //travel in the positive Y direction to midline
-            wayPoses.add(new Pose(-12.0, 50.0, -90.0));
-            //travel back 12 inches
-            wayPoses.add(new Pose(-52.0, 50.0, -90.0));
-            //travel to blue foundation start point
-            wayPoses.add(new Pose(-52.0, 60.0, -90.0));
-            //park in middle
-            wayPoses.add(new Pose(0.0, 60.0, -90.0));
-
-        } else {
-            //start at the origin facing X axis
-            wayPoses.add(new Pose(0.0,0.0,90.0));
-            //move forward 20 inches
-            wayPoses.add(new Pose(0.0, -5.0, 90.0));
-            //move back to origin
-            wayPoses.add(new Pose(0.0, -10.0, 90.0));
-            //move back to origin
-            wayPoses.add(new Pose(0.0, -15.0, 90.0));
-
-
-        }
-
-        //  Apply the transformation.
-        //  -->  Change sign of Y position
-        //  -->  Change sign of Heading
-        if (alliance == eBotsAuton2019.Alliance.RED){
-            for (Pose p:wayPoses){
-                p.setY(-p.getY());      //Flip sign for X
-                p.setHeading(-p.getHeading());  //The called method checks heading bounds (so -180 will become 180)
-            }
-        }
-    }
-
-    public void setWayPoses(ArrayList<Pose> wayPoses){
-
-        /*
-        //Red Foundation
-        wayPoses.add(new Pose(Pose.StartingPose.RED_FOUNDATION));
-        //travel in the positive Y direction to midline
-        wayPoses.add(new Pose(12.0, 9.0, 90.0));
-        //travel back 12 inches
-        wayPoses.add(new Pose(40.0, 12.0, 90.0));
-        //travel to blue foundation start point
-        wayPoses.add(new Pose(40.0, -36.0, 90.0));
-        */
-
-        /*Red Quarry
-        wayPoses.add(new Pose(Pose.StartingPose.RED_QUARRY));
-        //travel in the positive Y direction to midline
-        wayPoses.add(new Pose(-12.0, -47.0, 90.0));
-        //travel back 12 inches
-        wayPoses.add(new Pose(-52.0, -47.0, 90.0));
-        //travel to blue foundation start point
-        wayPoses.add(new Pose(52.0, -47.0, 90.0));
-        */
-
-        /*
-        //Blue Quarry
-        wayPoses.add(new Pose(Pose.StartingPose.BLUE_QUARRY));
-        //travel in the positive Y direction to midline
-        wayPoses.add(new Pose(-12.0, 50.0, -90.0));
-        //travel back 12 inches
-        wayPoses.add(new Pose(-52.0, 50.0, -90.0));
-        //travel to blue foundation start point
-        wayPoses.add(new Pose(52.0, 50.0, -90.0));
-        */
-
-
-
-
-
-        /*  This is the first iteration
-        //Blue Foundation
-        wayPoses.add(new Pose(Pose.StartingPose.BLUE_FOUNDATION));
-        //travel in the positive Y direction to midline
-        wayPoses.add(new Pose(22.0, -9.0, -90.0));
-        //travel back 12 inches
-        wayPoses.add(new Pose(52.0, -12.00, -90.0));
-        //travel to blue foundation start point
-        wayPoses.add(new Pose(52.0, 42.0, -90.0));
-        */
-    }
 
 }

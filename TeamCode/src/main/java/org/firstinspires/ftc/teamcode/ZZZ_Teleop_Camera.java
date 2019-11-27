@@ -2,7 +2,6 @@ package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.DigitalChannel;
 
 import java.util.ArrayList;
 
@@ -320,7 +319,7 @@ public class ZZZ_Teleop_Camera extends eBotsAuton2019 {
             }
 
             if (gamepad2.left_bumper && gamepad2.right_trigger > 0.3){
-                autoReleaseStone(motorList);
+                autoReleaseStone(Speed.SLOW);
             }
 
             //writeTelemetry();

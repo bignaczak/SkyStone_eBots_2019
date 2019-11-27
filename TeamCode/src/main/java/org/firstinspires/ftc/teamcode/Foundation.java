@@ -50,5 +50,4 @@ public class Foundation {
         return new Pose (endPose.getX() - 4.0, endPose.getY() + (10.0 * incrementSign), 0.0);
     }
 
-
 }
