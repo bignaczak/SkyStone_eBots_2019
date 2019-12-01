@@ -186,7 +186,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         }
     }
 
-    protected ArrayList<DcMotor> getDriveMotors(){return driveMotors;}
+    protected static ArrayList<DcMotor> getDriveMotors(){return driveMotors;}
 
 
     /***************************************************************
@@ -959,23 +959,6 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         return maxValue;
     }
 
-    public static double findMinAbsValue(double[] array) {
-        //Now capture the max drive value from the array
-        double minValue = Math.abs(array[0]);
-        for (int i = 1; i < array.length; i++){
-            if(Math.abs(array[i]) < minValue) minValue = Math.abs(array[i]);
-        }
-        return minValue;
-    }
-
-    public static int findMinAbsValue(int[] array) {
-        //Now capture the max drive value from the array
-        int minValue = Math.abs(array[0]);
-        for (int i = 1; i < array.length; i++){
-            if(Math.abs(array[i]) < minValue) minValue = Math.abs(array[i]);
-        }
-        return minValue;
-    }
 
     public void performDriveStep(double xInput, double yInput, double spin, long duration, ArrayList<DcMotor> motors){
         //r gives the left stick's offset from 0 position by calculating hypotenuse of x and y offset
@@ -1191,7 +1174,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
             i++;
         }
     }
-    public void stopMotors() {
+    public static void stopMotors() {
 
         ArrayList<DcMotor> motors = getDriveMotors();
         long stopTime = 150;

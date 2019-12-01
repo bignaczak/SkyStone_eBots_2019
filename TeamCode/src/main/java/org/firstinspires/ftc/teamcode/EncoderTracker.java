@@ -27,11 +27,15 @@ public class EncoderTracker {
     private Integer cumulativeClicks;                //  Cumulative Number of Clicks
     private Double cumulativeDistance;               //  Total Distance traveled in inches
     private VirtualEncoder virtualEncoder;
+    private double wheelDiameter;
+    private double spinRadius;
+    private SpinBehavior spinBehavior;          //
+    private ClickDirection clickDirection;
 
     /***************************************************************88
     //******    STATIC VARIABLES
     //****************************************************************/
-    private static Double clicksPerInch = 434.82;   //  Clicks per inch of travel
+    private static Double clicksPerInch = 434.6;   //  Clicks per inch of travel
 
     //A list of all the encoders being tracked
     private static ArrayList<EncoderTracker> encoders = new ArrayList<>();
@@ -42,30 +46,29 @@ public class EncoderTracker {
 
     public enum RobotOrientation{
         FORWARD,
-        LATERAL
+        LATERAL,
     }
 
-    /***************************************************************88
-    //******    SIMPLE GETTERS AND SETTERS
-    //****************************************************************/
-
-    public Integer getClicks(){
-        Integer clicks;
-        //  Depending on whether the encoder is virtual (motor is null) or real
-        //  It runs a different command
-
-        if (this.motor == null){
-            clicks = this.virtualEncoder.getClicks();
-        } else {
-            clicks = this.motor.getCurrentPosition();
-        }
-        return clicks;
+    public enum SpinBehavior{
+        /**
+         * Describes whether the encoder count increases or decreases with positive angle change
+         */
+        INCREASES_WITH_ANGLE
+        , DECREASES_WITH_ANGLE
     }
 
-
-    public static Integer getEncoderTrackerCount(){
-        return encoders.size();
+    public enum ClickDirection{
+        /**
+         * Describes whether the click count increases or decreases with positive x/y travel (forward/left travel)
+         */
+        STANDARD,
+        REVERSE
     }
+
+    public enum FieldDirection{
+        X, Y
+    }
+
     /****************************************************************
     //******    CONSTRUCTORS
     //***************************************************************/
@@ -79,6 +82,10 @@ public class EncoderTracker {
         this.cumulativeDistance = 0.0;
         this.cumulativeClicks =0;
         this.virtualEncoder = null;
+        this.wheelDiameter = 3.0;
+        this.spinRadius = 6.0;
+        this.spinBehavior = SpinBehavior.INCREASES_WITH_ANGLE;
+        this.clickDirection = ClickDirection.STANDARD;
         encoders.add(this);
     }
 
@@ -89,6 +96,10 @@ public class EncoderTracker {
         this.currentClicks = this.getClicks();
         this.cumulativeDistance = 0.0;
         this.cumulativeClicks =0;
+        this.wheelDiameter = 3.0;
+        this.spinRadius = 6.0;
+        this.spinBehavior = SpinBehavior.INCREASES_WITH_ANGLE;
+        this.clickDirection = ClickDirection.STANDARD;
         encoders.add(this);
     }
 
@@ -177,6 +188,245 @@ public class EncoderTracker {
         //trackingPose.setHeading();        //Add this once the 3rd encoder is installed
     }
 
+    public static void updatePoseUsingThreeEncoders(TrackingPose trackingPose){
+        /**
+         * Update tracking pose based on the readings of 3 encoders
+         * One direction of travel has double Encoders to capture spin
+         */
+        boolean debugOn = true;
+        String logTag = "BTI_updatePose...Three";
+        if (debugOn) {
+            Log.d(logTag, "Entering updatePoseUsingThreeEncoders");
+            Log.d(logTag, "Starting encoder positions");
+            for(EncoderTracker e: encoders){
+                e.toString();
+            }
+        }
+        RobotOrientation doubleEncoderDirection = RobotOrientation.FORWARD;
+
+        ArrayList<EncoderTracker> doubleEncoders = getDoubleEncoders(doubleEncoderDirection);
+        EncoderTracker singleEncoder = getSingleEncoder(doubleEncoderDirection);
+        if (singleEncoder == null) {
+            if (debugOn) Log.d(logTag, "Error finding single encoder");
+            return;
+        }
+
+        int spinClicks = calculateSpinClicks(doubleEncoders);
+        int translateClicks = calculateTranslateClicks(doubleEncoders);
+
+        //TODO:  Add consideration for different spin radius
+        int singleEncoderClicks = singleEncoder.getIncrementalClicks();
+        int singleTranslateClicks = singleEncoderClicks - spinClicks;
+
+
+        //TODO:  Consider either performing this earlier or temporarily storing read values
+        //After reading in values, update encoders currentClicks variable with the present encoder values
+        updateEncoderCurrentClicks();
+
+
+        double deltaX = 0.0;
+        double deltaY = 0.0;
+        double deltaAngle = 0.0;
+        for (RobotOrientation ro: RobotOrientation.values()){
+            if(ro == doubleEncoderDirection){
+                deltaX += calculateTranslateComponent(translateClicks, FieldDirection.X, ro, trackingPose);
+                deltaY += calculateTranslateComponent(translateClicks, FieldDirection.Y, ro, trackingPose);
+            } else {
+                deltaX += calculateTranslateComponent(singleTranslateClicks, FieldDirection.X, ro, trackingPose);
+                deltaY += calculateTranslateComponent(singleTranslateClicks, FieldDirection.Y, ro, trackingPose);
+            }
+        }
+
+        deltaAngle = calculateSpinAngle(spinClicks, doubleEncoders);
+
+        //Now update the tracking pose with the new location and heading
+        trackingPose.setX(trackingPose.getX() + deltaX);
+        trackingPose.setY(trackingPose.getY() + deltaY);
+        trackingPose.setHeading(trackingPose.getHeading() + deltaAngle);  //Also applies angle bound
+
+        //TODO:  Consider refinement to heading or position based on other sensor input
+    }
+
+    private static double calculateTranslateComponent(int translateClicks, FieldDirection fd, RobotOrientation ro, TrackingPose trackingPose){
+        /**
+         * Calculates the field translation component of the travel
+         */
+        boolean debugOn = true;
+        String logTag = "BTI_calcTransComp";
+
+        double translationComponent;
+        double totalDistance = translateClicks / clicksPerInch;
+
+        //Consider the placement of the encoder on the robot
+        //This assumes that when robot front oriented with positive X direction
+        //  that clicks increase with x+ and y+ field oriented vectors
+        double encoderAngle = trackingPose.getHeading();
+
+        if (debugOn) Log.d(logTag, "Entering calculateTranslateComponent for robot orientation: " + ro.name()
+                + " field direction: " + fd.name());
+
+        //Lateral encoder must shift angle to calculate effect on X and Y coordinates
+
+        if(ro == RobotOrientation.LATERAL) {
+            encoderAngle += 90;
+        }
+
+
+
+        double angleComponent;
+        double encoderAngleRad = Math.toRadians(encoderAngle);
+
+        if (debugOn) Log.d(logTag, "Encoder Angle: " + format("%.2f", encoderAngle)
+                + ", travel direction: " + format("%.2f", trackingPose.getTravelDirection()));
+
+        //If X component, need to take cos for FORWARD, sin for LATERAL
+        //If Y component, need to take sin for FORWARD, cos for LATERAL
+        if (fd == FieldDirection.X){
+            //angleComponent = (ro==RobotOrientation.FORWARD) ? Math.cos(encoderAngleRad) : Math.sin(encoderAngleRad);
+            angleComponent = Math.cos(encoderAngleRad);
+        } else if (fd == FieldDirection.Y){
+            //angleComponent = (ro==RobotOrientation.FORWARD) ? Math.sin(encoderAngleRad) : Math.cos(encoderAngleRad);
+            angleComponent = Math.sin(encoderAngleRad);
+        } else {
+            angleComponent = 0;
+        }
+        translationComponent = totalDistance * angleComponent;
+
+        if (debugOn) {
+            Log.d(logTag, "Total Travel in " + ro.name() + " direction: " + format("%.3f", totalDistance));
+            Log.d(logTag, "Exiting calculateTranslateComponent, returning " + format("%.3f", translationComponent)
+                    + " for " + fd.name() + " from " + translateClicks + " translationClicks"
+                    + " in " + ro.name() + " encoder direction");
+            //Log.d(logTag, "Pose: " + trackingPose.toString());
+        }
+        return translationComponent;
+    }
+
+    private static double calculateSpinAngle(double spinClicks, ArrayList<EncoderTracker> doubleEncoders){
+        boolean debugOn = true;
+        String logTag = "BTI_calculateAngleCh";
+        if (debugOn) Log.d(logTag, "Calculating Angle Change");
+        double spinCircumference = 2 * Math.PI * doubleEncoders.get(0).spinRadius;
+        double spinDistance = spinClicks / clicksPerInch;
+        double spinAngle = spinDistance / spinCircumference * 360;
+
+        if (debugOn) Log.d(logTag, "Spin Angle: " + format("%.2f", spinAngle));
+        return spinAngle;
+    }
+
+    private static int calculateSpinClicks(ArrayList<EncoderTracker> doubleEncoders) {
+        /**
+         * Take the difference of the 2 encoders and divide by 2
+         */
+        boolean debugOn = true;
+        String logTag = "BTI_calculateSpinClicks";
+
+        EncoderTracker encoderIncreases;
+        EncoderTracker encoderDecreases;
+
+        if (doubleEncoders.get(0).clickDirection == ClickDirection.STANDARD){
+            encoderIncreases = doubleEncoders.get(0);
+            encoderDecreases = doubleEncoders.get(1);
+        } else {
+            encoderIncreases = doubleEncoders.get(1);
+            encoderDecreases= doubleEncoders.get(0);
+        }
+
+        int spinClicks = encoderIncreases.getIncrementalClicks() - encoderDecreases.getIncrementalClicks();
+
+        spinClicks = (int) Math.round(spinClicks/2.0);
+
+        return spinClicks;
+    }
+
+    private static int calculateTranslateClicks(ArrayList<EncoderTracker> doubleEncoders) {
+        /**
+         * Average the two encoders
+         */
+        boolean debugOn = true;
+        String logTag = "BTI_calcTransClicks";
+        if (debugOn) Log.d(logTag, "Calculating translate clicks");
+        int translateClicks = 0;
+        for (EncoderTracker e: doubleEncoders){
+            translateClicks += e.getIncrementalClicks();
+            if(debugOn) Log.d(logTag, e.getIncrementalClicks() + " incremental clicks for encoder " + e.robotOrientation + " " + e.clickDirection);
+        }
+        if (debugOn) Log.d(logTag, "Total Clicks: " + translateClicks);
+        translateClicks = (int) Math.round(translateClicks/2.0);
+        if (debugOn) Log.d(logTag, "Averaged Value: " + translateClicks);
+        return translateClicks;
+    }
+
+    private static ArrayList<EncoderTracker> getDoubleEncoders(RobotOrientation robotOrientation){
+        /**
+         * Returns 2 properly setup encoders or an empty list if problem detected
+         */
+        boolean debugOn = true;
+        String logTag = "BTI_updatePose...Three";
+        RobotOrientation doubleOrientation = robotOrientation;
+
+        ArrayList<EncoderTracker> doubleEncoders = new ArrayList<>();
+        if (doubleEncoders.size()>0) doubleEncoders.clear();
+
+        //Make sure that there are 3 encoders
+        if (getEncoderTrackerCount() != 3) {
+            Log.d(logTag, "Not 3 encoders");
+        } else {
+            for (EncoderTracker e: encoders){
+                if(e.robotOrientation == doubleOrientation) doubleEncoders.add(e);
+            }
+        }
+
+        if (doubleEncoders.size() > 0 && doubleEncoders.size() != 2){
+            if(debugOn) Log.d(logTag, "Incorrect number of double encoders found");
+            doubleEncoders.clear();
+        }
+
+        if (!verifyDoubleEncoderSpinBehavior(doubleEncoders)){
+            if (debugOn) Log.d(logTag, "Prematurely exiting updatePoseUsingThreeEncoders");
+            //  Encoder direction not spin behavior not correct, clear the list
+            doubleEncoders.clear();
+        }
+
+        return doubleEncoders;
+
+    }
+
+    private static EncoderTracker getSingleEncoder(RobotOrientation ro){
+        EncoderTracker singleEncoder = null;
+        for (EncoderTracker e: encoders){
+            if(e.robotOrientation != ro){
+                singleEncoder = e;
+                break;
+            }
+        }
+        return singleEncoder;
+    }
+
+    private static boolean verifyDoubleEncoderSpinBehavior(ArrayList<EncoderTracker> doubleEncoders){
+        boolean debugOn = true;
+        String logTag = "BTI_verifyDouble...Spin";
+        boolean result;
+
+        boolean increasesCovered = false;
+        boolean decreasesCovered= false;
+
+        for (EncoderTracker e: doubleEncoders){
+            if (e.spinBehavior == SpinBehavior.INCREASES_WITH_ANGLE){
+                increasesCovered = !increasesCovered;
+            } else if (e.spinBehavior == SpinBehavior.DECREASES_WITH_ANGLE){
+                decreasesCovered = !decreasesCovered;
+            }
+        }
+
+        if (!increasesCovered | !decreasesCovered) {
+            Log.d(logTag, "Encoders not setup for opposite reaction to spin");
+            result = false;
+        } else result = true;
+
+        return result;
+    }
+
     public static void updateVirtualEncoders(Double outputSignal,Long loopDuration, TrackingPose currentPose){
         Double distance = VirtualEncoder.calculateSimulatedDistance(outputSignal, loopDuration);
 
@@ -189,22 +439,104 @@ public class EncoderTracker {
                 encoderAngle += 90;
             }
             Double encoderAngleRad = Math.toRadians(encoderAngle);
-            e.virtualEncoder.simulateLoopOutput(distance, encoderAngleRad);
+            e.virtualEncoder.simulateLoopOutput(distance, encoderAngleRad, RobotOrientation.FORWARD);
         }
     }
+
+    public static void updateVirtualEncoders(double translateSignal, double travelDirection, double spinSignal, Long loopDuration, TrackingPose currentPose){
+        double distance = VirtualEncoder.calculateSimulatedDistance(translateSignal, loopDuration);
+        double spinDistance = VirtualEncoder.calculateSimulatedRotation(spinSignal, loopDuration);
+
+        double angleHeading = currentPose.getHeading();
+        double encoderAngle = travelDirection - angleHeading;
+
+        for (EncoderTracker e: encoders){
+            //  Apply the orientation to the encoder
+            /*
+            if (e.robotOrientation == RobotOrientation.LATERAL){
+                encoderAngle += 90;
+            }
+
+             */
+            double encoderAngleRad = Math.toRadians(encoderAngle);
+
+            //Assign the correct sign to the spin distance
+            int spinSign = (e.spinBehavior == SpinBehavior.INCREASES_WITH_ANGLE) ? 1 : -1;
+
+            //simulate the loop event to the virtual encoder
+            e.virtualEncoder.simulateLoopOutput(distance, encoderAngleRad, e.robotOrientation, (spinDistance * spinSign));
+        }
+    }
+
 
     public static void purgeExistingEncoderTrackers(){
         if (encoders.size() > 0) encoders.clear();
     }
 
     public static void updateEncoderCurrentClicks(){
+        boolean debugOn = true;
+        String logTag = "BTI_updateEndCurClicks";
+
         for(EncoderTracker e: encoders){
+            int oldValue = e.currentClicks;
             e.currentClicks = e.getClicks();
+            if (debugOn) Log.d(logTag, e.robotOrientation.name() + " encoder was " + oldValue
+                            + " and is now " + e.currentClicks);
         }
     }
-/***************************************************************
- //******    CLASS METHODS
- //****************************************************************/
+
+    /***************************************************************88
+    //******    SIMPLE GETTERS AND SETTERS
+    //****************************************************************/
+
+
+    public static Integer getEncoderTrackerCount(){
+        return encoders.size();
+    }
+
+    public void reverseClickDirection(){
+        this.clickDirection = ClickDirection.REVERSE;
+    }
+
+    public void setSpinBehavior(SpinBehavior spinBehaviorIn){
+        this.spinBehavior = spinBehaviorIn;
+    }
+
+    public void setSpinRadius(double radius){
+        this.spinRadius = radius;
+    }
+
+    public void setWheelDiameter(double diam){
+        this.wheelDiameter = diam;
+    }
+
+    public void setClickDirection(ClickDirection clickDirection){
+        this.clickDirection = clickDirection;
+    }
+
+    /***************************************************************
+     //******    CLASS METHODS
+     //****************************************************************/
+
+    public Integer getClicks(){
+        Integer clicks;
+        //  Depending on whether the encoder is virtual (motor is null) or real
+        //  It runs a different command
+
+        if (this.motor == null){
+            clicks = this.virtualEncoder.getClicks();
+        } else {
+            clicks = this.motor.getCurrentPosition();
+        }
+        return clicks;
+    }
+
+    private int getIncrementalClicks(){
+        int incrementalClicks = this.getClicks() - this.currentClicks;
+        //int sign = (this.clickDirection == ClickDirection.REVERSE) ? -1 : 1;
+        return (incrementalClicks);
+    }
+
 
     @Override
     public String toString(){
@@ -215,7 +547,8 @@ public class EncoderTracker {
                     + this.getClicks() + " Distance: " + Math.abs(this.getClicks() / clicksPerInch);
         } else {
             outputString = "Virtual Encoder, Orientation: " + this.robotOrientation.name()
-                    + " Clicks: " + this.getClicks();
+                    + this.clickDirection.name() + " currentClicks: " + currentClicks
+                    + " New Reading: " + this.getClicks() + " Incremental: " + this.getIncrementalClicks();
         }
         return outputString;
     }

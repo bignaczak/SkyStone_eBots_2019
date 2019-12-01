@@ -126,6 +126,14 @@ public class TrackingPose extends Pose {
         this.setHeading(fieldHeading);
     }
 
+    public double getSpinError(){
+        double targetHeading = targetPose.getHeading();
+        double currentHeading = this.getHeading();
+        double spinError = targetHeading - currentHeading;
+        spinError = applyAngleBound(spinError);
+        return spinError;
+
+    }
 
     public Double getSignedError(){
         return this.poseError.getSignedError();
@@ -160,8 +168,19 @@ public class TrackingPose extends Pose {
         return this.poseError.getErrorSum();
     }
 
+    public double getXErrorSum(){return this.poseError.getXErrorSum();}
+    public double getYErrorSum(){return this.poseError.getYErrorSum();}
+    public double getSpinErrorSum(){return this.poseError.getSpinErrorSum();}
+
     public void updateErrorSum(Boolean isSaturated){
         this.poseError.calculateErrorSum(isSaturated);
+    }
+    public void addToXErrorSum(double error) {this.poseError.addToXErrorSum(error);}
+    public void addToYErrorSum(double error) {this.poseError.addToYErrorSum(error);}
+    public void addToSpinErrorSum(double error) {this.poseError.addToSpinErrorSum(error);}
+
+    public void resetErrorSum(){
+        this.poseError.resetErrorSums();
     }
 
     public void setHeadingErrorLocked(Boolean isSaturated, Boolean driveSignalSignChange, double iGain){
@@ -183,9 +202,13 @@ public class TrackingPose extends Pose {
 
 
     public String printError(){
-        return "Error: " + format("%.2f", this.getSignedError()) +
-                " @ " + format("%.2f", this.getHeadingError()) +
-                ", errorSum: " + format("%.2f", this.getErrorSum());
+        return "Error: (" + format("%.2f", this.getXError()) + ", " + format("%.2f", this.getYError())
+                + " < " + format("%.2f", this.getSpinError())
+                + ") total dist: " + format("%.2f", this.getSignedError()) +
+                " @ travel direction: " + format("%.2f", this.getHeadingError()) +
+                "\n xError [xErrorSum]: " + format("%.2f", this.getXError()) + " ["+ format("%.2f", this.getXErrorSum()) + "]" +
+                "\n yError [yErrorSum]: " + format("%.2f", this.getYError()) + " ["+ format("%.2f", this.getYErrorSum()) + "]" +
+                "\n spin Error [spinErrorSum]: " + format("%.2f", this.getSpinError()) + " ["+ format("%.2f", this.getSpinErrorSum()) + "]";
     }
 
     @Override

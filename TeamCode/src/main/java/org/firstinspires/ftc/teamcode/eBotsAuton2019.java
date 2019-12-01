@@ -59,6 +59,7 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
     protected Double outputSignal=0.0;
 
     protected EncoderTracker forwardTracker;
+    protected EncoderTracker forwardTracker2;
     protected EncoderTracker lateralTracker;
     protected ArrayList<Pose> wayPoses;
     protected Foundation foundation;
@@ -93,28 +94,44 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
     }
 
     public enum Speed{
-        SLOW (0.35, 0.3, 0.15, 0.0),
-        MEDIUM (0.60,0.4,  0.07, 0.0),
-        FAST (0.8, 0.4, 0.04, 0.0);
+        SLOW (0.35, 0.3, 0.15, 0.0, 0.0, 0.02, 0.00, 0.0),
+        MEDIUM (0.60,0.4,  0.07, 0.015, 0.0, 0.04, 0.01, 0.0),
+        FAST (0.8, 0.4, 0.04, 0.008, 0.0,0.05, 0.005,0.0);
 
         /**  ENUM VARIABLES     **************/
-        private Double maxSpeed;
-        private Double turnSpeed;
-        private Double pGainEnum;
-        private Double iGainEnum;
-
+        private double maxSpeed;
+        private double turnSpeed;
+        private double k_p;  //for translate proportional
+        private double k_i;  //for translate integrator
+        private double k_d;  //for translate derivative
+        private double s_p;  //for spin proportional
+        private double s_i;  //for spin integrator
+        private double s_d;  //for spin derivative
         /**  CONSTRUCTOR    **************/
-        Speed(Double speed, Double turnSpeed, Double pGain, Double iGain){
+        Speed(double speed, double turnSpeed, double pGain, double iGain, double dGain, double spinPGain, double spinIGain, double spinDGain){
             this.maxSpeed = speed;
             this.turnSpeed = turnSpeed;
-            this.pGainEnum = pGain;
-            this.iGainEnum = iGain;
+            this.k_p = pGain;
+            this.k_i = iGain;
+            this.k_d = dGain;
+            this.s_p = spinPGain;
+            this.s_i = spinIGain;
+            this.s_d = spinDGain;
         }
         /**  ENUM GETTERS AND SETTERS  ***********/
-        public Double getMaxSpeed(){return this.maxSpeed;}
-        public Double getTurnSpeed(){return this.turnSpeed;}
-        public Double getpGainEnum(){return this.pGainEnum;}
-        public Double getiGainEnum(){return this.iGainEnum;}
+        public double getMaxSpeed(){return this.maxSpeed;}
+        public double getTurnSpeed(){return this.turnSpeed;}
+        public double getK_p(){return this.k_p;}
+        public double getK_i(){return this.k_i;}
+        public double getS_p(){return this.s_p;}
+        public double getS_i(){return this.s_i;}
+
+        @Override
+        public String toString(){
+            return "maxSpeed: " + maxSpeed + " , turnSpeed: " + turnSpeed
+                    + ", Translate Coefficients k_p / k_i / k_d: " + this.k_p + " / " + this.k_i + " / " + this.k_d
+                    + ", Spin Coefficients s_p / s_i / s_d: " + this.s_p + " / " + this.s_i + " / " + this.s_d;
+        }
     }
 
     public enum GyroSetting{
@@ -161,22 +178,24 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
     }
 
     public enum Accuracy{
-        LOOSE (10.0, 0.5, 500.0),
-        STANDARD (5.0, 0.2, 100.0),
-        TIGHT (2.5, 0.1, 25.0);
+        LOOSE (10.0, 0.5, 500.0, 500.0),
+        STANDARD (5.0, 0.5, 10.0, 1.0),
+        TIGHT (2.5, 0.1, 25.0, 25.0);
 
         /**  ENUM VARIABLES     **************/
 
         private Double headingAngleAccuracy;
         private Double positionalAccuracy;
         private Double integratorUnwindLimit;
+        private Double spinIntegratorUnwindLimit;
 
         /**  CONSTRUCTOR    **************/
 
-        Accuracy(Double headingAngleAccuracy, Double positionalAccuracy, Double integratorUnwind){
+        Accuracy(Double headingAngleAccuracy, Double positionalAccuracy, Double integratorUnwind, Double spinIntegratorUnwind){
             this.headingAngleAccuracy = headingAngleAccuracy;
             this.positionalAccuracy = positionalAccuracy;
-            this.integratorUnwindLimit = integratorUnwind;
+            this.integratorUnwindLimit = integratorUnwind;  // for translate position
+            this.spinIntegratorUnwindLimit = spinIntegratorUnwind;  // for translate position
         }
 
         /**  ENUM GETTERS AND SETTERS  ***********/
@@ -189,6 +208,16 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
         }
         public Double getIntegratorUnwindLimit() {
             return integratorUnwindLimit;
+        }
+        public Double getSpinIntegratorUnwindLimit() {
+            return spinIntegratorUnwindLimit;
+        }
+        @Override
+        public String toString(){
+            return "Translate position tol: " + format("%.1f",positionalAccuracy)
+                    + ", Translate Integrator: " + format("%.1f", integratorUnwindLimit)
+                    + ", Heading angle tol: " + format("%.1f", headingAngleAccuracy)
+                    + ", Heading Integrator: " + format("%.1f", spinIntegratorUnwindLimit);
         }
     }
 
@@ -316,8 +345,8 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
     protected void setSpeedConfiguration(Speed speedConfig){
         saturationLimit = speedConfig.getMaxSpeed();
         turnSpeed = speedConfig.getTurnSpeed();
-        pGain = speedConfig.getpGainEnum();
-        iGain = speedConfig.getiGainEnum();
+        pGain = speedConfig.getK_p();
+        iGain = speedConfig.getK_i();
     }
 
     protected void setSoftStartConfig(SoftStart softStartConfig){
@@ -366,8 +395,12 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
         EncoderTracker.purgeExistingEncoderTrackers();
         Log.d("initEncoderTrackersVir", "Initializing Virtual Encoders");
         VirtualEncoder virForwardEncoder = new VirtualEncoder();  //if using virtual
+        VirtualEncoder virForwardEncoder2 = new VirtualEncoder();  //if using virtual
         VirtualEncoder virLateralEncoder = new VirtualEncoder();  //if using virtual
         forwardTracker = new EncoderTracker(virForwardEncoder, EncoderTracker.RobotOrientation.FORWARD);
+        forwardTracker2 = new EncoderTracker(virForwardEncoder2, EncoderTracker.RobotOrientation.FORWARD);
+        forwardTracker2.setSpinBehavior(EncoderTracker.SpinBehavior.DECREASES_WITH_ANGLE);
+        forwardTracker2.setClickDirection(EncoderTracker.ClickDirection.REVERSE);
         lateralTracker = new EncoderTracker(virLateralEncoder, EncoderTracker.RobotOrientation.LATERAL);
     }
 

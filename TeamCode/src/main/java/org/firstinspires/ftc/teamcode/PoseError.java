@@ -1,5 +1,7 @@
 package org.firstinspires.ftc.teamcode;
 
+import static java.lang.String.format;
+
 public class PoseError {
     //  PoseError represents the difference in position and heading
     //  between a given pose and a target pose
@@ -16,6 +18,12 @@ public class PoseError {
                                         //    POSITIVE ->      0 < theta <= 180
 
     private Double errorSum;    //  Cumulative error for the Integrator portion of PID controller
+    private Double xErrorSum;    //  and for x component
+    private Double yErrorSum;    //  and for y component
+    private Double spinErrorSum;    //  and for spin
+
+
+
 
     private Double heading;     //  Which way the robot needs to travel relative to the field
                                 //    to reach target position
@@ -30,9 +38,14 @@ public class PoseError {
     //***************************************************************88
     public Double getMagnitude() {return magnitude; }
     public Integer getSignOfMagnitude() {return signOfMagnitude;}
+    //TODO:  Change this heading to travelDirection, or something else less confusing with trackingPose heading
     public Double getHeading() {return heading;}
+    public Double getXErrorSum() {return xErrorSum;}
+    public Double getYErrorSum() {return yErrorSum;}
+    public Double getSpinErrorSum() {return spinErrorSum;}
     public Double getErrorSum() {return errorSum;}
     public Double getErrorControlValue() {return errorControlValue;}
+    public void setErrorSum(double newValue){this.errorSum = newValue;}
 
 
     //***************************************************************88
@@ -42,7 +55,7 @@ public class PoseError {
         this.magnitude = 0.0;
         this.signOfMagnitude = -1;
         this.heading = 0.0;
-        this.errorSum = 0.0;
+        resetErrorSums();
         this.calculateErrorControlValue();
     }
 
@@ -50,7 +63,7 @@ public class PoseError {
 
     public PoseError(TrackingPose currentPose) {
         //  Set the errorSum to zero when instantiated
-        this.errorSum = 0.0;
+        resetErrorSums();
         calculateError(currentPose);
 
 
@@ -59,7 +72,12 @@ public class PoseError {
     //******    METHODS
     //***************************************************************88
 
-
+    public void resetErrorSums(){
+        this.errorSum = 0.0;
+        this.xErrorSum = 0.0;
+        this.yErrorSum = 0.0;
+        this.spinErrorSum = 0.0;
+    }
     public Double getSignedError(){
         return (this.magnitude * this.signOfMagnitude);
     }
@@ -116,9 +134,14 @@ public class PoseError {
         this.calculateErrorControlValue();
     }
 
+    public void addToXErrorSum(double error) {this.xErrorSum += error;}
+    public void addToYErrorSum(double error) {this.yErrorSum += error;}
+    public void addToSpinErrorSum(double error) {this.spinErrorSum += error;}
+
     private void calculateErrorControlValue() {
         this.errorControlValue = this.magnitude + Math.abs(this.errorSum);
     }
+
 
     //***************************************************************88
     //******    STATIC METHODS
@@ -130,4 +153,5 @@ public class PoseError {
         //    POSITIVE ->      0 < theta <= 180
         return (inputHeading<=0)? -1 : 1;
     }
+
 }
