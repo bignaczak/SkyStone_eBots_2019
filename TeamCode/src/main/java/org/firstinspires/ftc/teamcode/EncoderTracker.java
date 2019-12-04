@@ -2,7 +2,12 @@ package org.firstinspires.ftc.teamcode;
 
 import android.util.Log;
 
+import com.qualcomm.hardware.bosch.BNO055IMU;
 import com.qualcomm.robotcore.hardware.DcMotor;
+
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.AxesOrder;
+import org.firstinspires.ftc.robotcore.external.navigation.AxesReference;
 
 import java.util.ArrayList;
 import java.util.ListIterator;
@@ -97,7 +102,7 @@ public class EncoderTracker {
         this.cumulativeDistance = 0.0;
         this.cumulativeClicks =0;
         this.wheelDiameter = 3.0;
-        this.spinRadius = 6.0;
+        this.spinRadius = 8.0;
         this.spinBehavior = SpinBehavior.INCREASES_WITH_ANGLE;
         this.clickDirection = ClickDirection.STANDARD;
         encoders.add(this);
@@ -188,7 +193,7 @@ public class EncoderTracker {
         //trackingPose.setHeading();        //Add this once the 3rd encoder is installed
     }
 
-    public static void updatePoseUsingThreeEncoders(TrackingPose trackingPose){
+    public static void updatePoseUsingThreeEncoders(TrackingPose trackingPose, BNO055IMU imu){
         /**
          * Update tracking pose based on the readings of 3 encoders
          * One direction of travel has double Encoders to capture spin
@@ -211,12 +216,18 @@ public class EncoderTracker {
             return;
         }
 
+        // Capture spin and translate info from double Encoders
         int spinClicks = calculateSpinClicks(doubleEncoders);
         int translateClicks = calculateTranslateClicks(doubleEncoders);
 
-        //TODO:  Add consideration for different spin radius
+        // Capture single encoder incremental clicks and then apply
+        // spin information to discern between translation and rotation
         int singleEncoderClicks = singleEncoder.getIncrementalClicks();
-        int singleTranslateClicks = singleEncoderClicks - spinClicks;
+
+        //Because the single encoder is a different distance from the centerpoint, a different spinClicks must be calculated
+        double deltaAngle = calculateSpinAngle(spinClicks, doubleEncoders);
+        int singleEncoderSpinClicks = calculateSingleEncoderSpinClicks(deltaAngle, singleEncoder.getSpinRadius());
+        int singleTranslateClicks = singleEncoderClicks - singleEncoderSpinClicks;
 
 
         //TODO:  Consider either performing this earlier or temporarily storing read values
@@ -226,7 +237,6 @@ public class EncoderTracker {
 
         double deltaX = 0.0;
         double deltaY = 0.0;
-        double deltaAngle = 0.0;
         for (RobotOrientation ro: RobotOrientation.values()){
             if(ro == doubleEncoderDirection){
                 deltaX += calculateTranslateComponent(translateClicks, FieldDirection.X, ro, trackingPose);
@@ -237,13 +247,13 @@ public class EncoderTracker {
             }
         }
 
-        deltaAngle = calculateSpinAngle(spinClicks, doubleEncoders);
 
         //Now update the tracking pose with the new location and heading
         trackingPose.setX(trackingPose.getX() + deltaX);
         trackingPose.setY(trackingPose.getY() + deltaY);
-        trackingPose.setHeading(trackingPose.getHeading() + deltaAngle);  //Also applies angle bound
-
+        //trackingPose.setHeading(trackingPose.getHeading() + deltaAngle);  //Also applies angle bound
+        double gyroHeadingReading = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES).firstAngle;
+        trackingPose.setHeadingFromGyro(gyroHeadingReading);
         //TODO:  Consider refinement to heading or position based on other sensor input
     }
 
@@ -251,7 +261,7 @@ public class EncoderTracker {
         /**
          * Calculates the field translation component of the travel
          */
-        boolean debugOn = true;
+        boolean debugOn = false;
         String logTag = "BTI_calcTransComp";
 
         double translationComponent;
@@ -308,10 +318,19 @@ public class EncoderTracker {
         if (debugOn) Log.d(logTag, "Calculating Angle Change");
         double spinCircumference = 2 * Math.PI * doubleEncoders.get(0).spinRadius;
         double spinDistance = spinClicks / clicksPerInch;
-        double spinAngle = spinDistance / spinCircumference * 360;
+        double spinAngle = spinDistance / spinCircumference * 360.0;
 
-        if (debugOn) Log.d(logTag, "Spin Angle: " + format("%.2f", spinAngle));
+        if (debugOn) Log.d(logTag, "Spin Angle: " + format("%.2f", spinAngle) +
+                " from spinClicks: " + spinClicks + " or dist: " + format("%.2f", spinDistance) +
+                " over radius " + format("%.2f", doubleEncoders.get(0).spinRadius));
         return spinAngle;
+    }
+
+    private static int calculateSingleEncoderSpinClicks(double deltaAngle, double spinRadius){
+        //  Calculate distance using s=r(theta)
+        double spinDistance = (Math.toRadians(deltaAngle) * spinRadius);
+        int spinClicks = (int) Math.round(spinDistance * clicksPerInch);
+        return spinClicks;
     }
 
     private static int calculateSpinClicks(ArrayList<EncoderTracker> doubleEncoders) {
@@ -332,6 +351,8 @@ public class EncoderTracker {
             encoderDecreases= doubleEncoders.get(0);
         }
 
+        //TODO:  Verify if inflation factor should be applied since the wheel orientation
+        // isn't tangent to spin circumference
         int spinClicks = encoderIncreases.getIncrementalClicks() - encoderDecreases.getIncrementalClicks();
 
         spinClicks = (int) Math.round(spinClicks/2.0);
@@ -343,7 +364,7 @@ public class EncoderTracker {
         /**
          * Average the two encoders
          */
-        boolean debugOn = true;
+        boolean debugOn = false;
         String logTag = "BTI_calcTransClicks";
         if (debugOn) Log.d(logTag, "Calculating translate clicks");
         int translateClicks = 0;
@@ -361,7 +382,7 @@ public class EncoderTracker {
         /**
          * Returns 2 properly setup encoders or an empty list if problem detected
          */
-        boolean debugOn = true;
+        boolean debugOn = false;
         String logTag = "BTI_updatePose...Three";
         RobotOrientation doubleOrientation = robotOrientation;
 
@@ -404,7 +425,7 @@ public class EncoderTracker {
     }
 
     private static boolean verifyDoubleEncoderSpinBehavior(ArrayList<EncoderTracker> doubleEncoders){
-        boolean debugOn = true;
+        boolean debugOn = false;
         String logTag = "BTI_verifyDouble...Spin";
         boolean result;
 
@@ -502,6 +523,7 @@ public class EncoderTracker {
         this.spinBehavior = spinBehaviorIn;
     }
 
+    public double getSpinRadius(){return this.spinRadius;}
     public void setSpinRadius(double radius){
         this.spinRadius = radius;
     }
@@ -544,7 +566,9 @@ public class EncoderTracker {
         if (this.motor != null) {
             outputString =  "Real encoder " + this.robotOrientation.name()
                     + " Motor Port: " + this.motor.getPortNumber() + " Clicks: "
-                    + this.getClicks() + " Distance: " + Math.abs(this.getClicks() / clicksPerInch);
+                    + this.getClicks() + "= Distance: " + format("%.2f", Math.abs(this.getClicks() / clicksPerInch))
+                    + ", clickDirection: " + this.clickDirection.name()
+                    + ", spinBehavior: " + this.spinBehavior.name();
         } else {
             outputString = "Virtual Encoder, Orientation: " + this.robotOrientation.name()
                     + this.clickDirection.name() + " currentClicks: " + currentClicks

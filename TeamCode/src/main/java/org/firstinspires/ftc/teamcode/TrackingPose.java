@@ -1,5 +1,7 @@
 package org.firstinspires.ftc.teamcode;
 
+import android.util.Log;
+
 import static java.lang.String.format;
 
 public class TrackingPose extends Pose {
@@ -69,6 +71,13 @@ public class TrackingPose extends Pose {
     public Boolean isHeadingErrorLocked(){return headingErrorLocked; }
     public Pose getTargetPose(){return this.targetPose;}
     public Double getInitialGyroOffset(){return this.initialGyroOffset;}
+    public void setTargetPose(Pose newTargetPose){
+        this.targetPose = newTargetPose;
+        this.poseError = new PoseError(this);
+        this.travelDirection = this.getHeadingError();
+        this.headingErrorLocked = false;
+        this.setPostMoveActivity(this.targetPose.getPostMoveActivity());  //Set postmove activity same as target pose
+    }
 
 
     //***************************************************************88
@@ -195,8 +204,26 @@ public class TrackingPose extends Pose {
         }
     }
 
-    public void updateTravelDirection(){
+    //There are 2 ways to update the travel direction
+
+    public void updateTravelDirection(){        //depricated
+        //  For the first version of PID controller, the heading had to be locked to allow
+        //  for the integrator to unwind
         if (!headingErrorLocked) travelDirection = getHeadingError();
+    }
+    //The newer version takes the intent from the raw signals calculated from error to determine direction
+    public void updateTravelDirection(double xSignal, double ySignal){
+        /*
+        boolean debugOn = true;
+
+        String logTag = "BTI_updateTravelDir";
+        if(debugOn) Log.d(logTag, "Perform atan2 on (x_sig, y_sig): (" + format("%.2f", xSignal) +
+                ", " + format("%.2f", ySignal) + ")");
+
+         */
+
+        travelDirection = Math.toDegrees(Math.atan2(ySignal, xSignal));
+
     }
 
 
@@ -205,7 +232,7 @@ public class TrackingPose extends Pose {
         return "Error: (" + format("%.2f", this.getXError()) + ", " + format("%.2f", this.getYError())
                 + " < " + format("%.2f", this.getSpinError())
                 + ") total dist: " + format("%.2f", this.getSignedError()) +
-                " @ travel direction: " + format("%.2f", this.getHeadingError()) +
+                " @ error direction: " + format("%.2f", this.getHeadingError()) +
                 "\n xError [xErrorSum]: " + format("%.2f", this.getXError()) + " ["+ format("%.2f", this.getXErrorSum()) + "]" +
                 "\n yError [yErrorSum]: " + format("%.2f", this.getYError()) + " ["+ format("%.2f", this.getYErrorSum()) + "]" +
                 "\n spin Error [spinErrorSum]: " + format("%.2f", this.getSpinError()) + " ["+ format("%.2f", this.getSpinErrorSum()) + "]";
@@ -219,8 +246,8 @@ public class TrackingPose extends Pose {
         } else {
             lockCondition = "[UNLOCKED]";
         }
-        return super.toString() + "-->" + format("%.1f", this.travelDirection) +
-               " " + lockCondition;
+        return super.toString() + " travelDir |" + format("%.1f", this.travelDirection) +
+               "| " + lockCondition;
     }
 
     //***************************************************************88

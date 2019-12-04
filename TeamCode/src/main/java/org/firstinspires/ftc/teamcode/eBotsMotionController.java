@@ -2,11 +2,15 @@ package org.firstinspires.ftc.teamcode;
 
 import android.util.Log;
 
+import com.qualcomm.hardware.bosch.BNO055IMU;
 import com.qualcomm.robotcore.hardware.DcMotor;
 
+import org.firstinspires.ftc.robotcore.external.Telemetry;
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.AxesOrder;
+import org.firstinspires.ftc.robotcore.external.navigation.AxesReference;
 import org.firstinspires.ftc.teamcode.eBotsAuton2019.Speed;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 
 import static java.lang.String.format;
@@ -35,7 +39,7 @@ public class eBotsMotionController {
     /*****************************************************************
      //******    STATIC METHODS
      //***************************************************************/
-    public static void moveToTargetPose(TrackingPose trackingPose, Speed speed, GyroSetting gyroSetting, Accuracy accuracy){
+    public static void moveToTargetPose(TrackingPose trackingPose, Speed speed, GyroSetting gyroSetting, Accuracy accuracy, SoftStart softStart, BNO055IMU imu, Telemetry telemetry){
         /*
         1) Calculate x,y, spin components of error
         2) Calculate direction for travel
@@ -79,26 +83,26 @@ public class eBotsMotionController {
         boolean translateIntegratorOn = (speed.getK_i()==0.0) ? false : true;
         boolean spinIntegratorOn = (speed.getS_i()==0.0) ? false : true;
 
-        StopWatch timer = new StopWatch();
-        long timeLimit = 5000L;
-        long loopStartTime = timer.getElapsedTimeMillis();
+        StopWatch travelLegTimer = new StopWatch();
+        long timeLimit = 7000L;
+        long loopStartTime;
         long loopEndTime;
         long loopDuration;
 
         int loopCount = 0;
 
-        boolean timedOut = (timer.getElapsedTimeMillis() < timeLimit) ? false: true;
+        boolean timedOut = (travelLegTimer.getElapsedTimeMillis() < timeLimit) ? false: true;
         boolean isTargetPoseReached = checkTravelExitConditions(trackingPose, accuracy);
 
         while(!isTargetPoseReached && !timedOut) {
             loopCount++;
-            loopStartTime = timer.getElapsedTimeMillis();
-            if (debugOn) Log.d(logTag, "____________Entering Loop " + timer.toString(loopCount) + "_________________");
+            loopStartTime = travelLegTimer.getElapsedTimeMillis();
+            if (debugOn) Log.d(logTag, "____________Entering Loop " + travelLegTimer.toString(loopCount) + "_________________");
 
             //Log ever loop on increment
-            if (debugOn) logPosition(trackingPose, loopCount, timer);
+            if (debugOn) logPosition(trackingPose, loopCount, travelLegTimer);
 
-            if (loopCount != 1) EncoderTracker.updatePoseUsingThreeEncoders(trackingPose);
+            if (loopCount != 1) EncoderTracker.updatePoseUsingThreeEncoders(trackingPose, imu);
             trackingPose.calculatePoseError();  //Refresh error values
 
             xError = trackingPose.getXError();
@@ -130,7 +134,7 @@ public class eBotsMotionController {
             boolean isSpinErrorSignDifferent = isSignDifferent(spinError, spinErrorSum);
 
             //  End the control loop here because loopDuration is needed for the Integral term
-            loopEndTime = timer.getElapsedTimeMillis();
+            loopEndTime = travelLegTimer.getElapsedTimeMillis();
             loopDuration = loopEndTime - loopStartTime;
 
             if (translateIntegratorOn && (!isXRawSignalSaturated | isXErrorSignDifferent)) trackingPose.addToXErrorSum(xError * (loopDuration / 1000.0));
@@ -139,11 +143,13 @@ public class eBotsMotionController {
 
 
             //Now energize the motors or cycle virtual encoders
+            if (debugOn) Log.d(logTag, "useVirtualEncoders: " + useVirtualEncoders);
+            if (debugOn) Log.d(logTag, "driveMotorSize: " + getDriveMotors().size());
             if (!useVirtualEncoders) {
-                activateDriveMotors(trackingPose, xRawSig, yRawSig, spinRawSig, speed);
+                activateDriveMotors(trackingPose, xRawSig, yRawSig, spinRawSig, speed,softStart ,travelLegTimer, telemetry);
             } else {
                 //The encoders use the travelDirection to determine changes to the x and y coordinates
-                trackingPose.updateTravelDirection();
+                trackingPose.updateTravelDirection(xRawSig, yRawSig);
                 //  Now figure out the output proportions for translate and spin
                 double translateSignalOut = (translateRawMagnitude < 1) ? translateRawMagnitude:1;
                 translateSignalOut *= speed.getMaxSpeed();
@@ -159,7 +165,9 @@ public class eBotsMotionController {
                 double travelDirection = Math.toDegrees(Math.atan2(yRawSig, xRawSig));
                 if(debugOn) Log.d(logTag, "Travel Direction: @" + format("%.2f", travelDirection));
 
-                EncoderTracker.updateVirtualEncoders(translateSignalOut, travelDirection, spinSignalOut, loopDuration, trackingPose);
+                if (getDriveMotors().size() == 0){
+                    EncoderTracker.updateVirtualEncoders(translateSignalOut, travelDirection, spinSignalOut, loopDuration, trackingPose);
+                }
             }
 
             loopStartTime = loopEndTime;
@@ -167,14 +175,25 @@ public class eBotsMotionController {
             //TODO:  Update to get access to gyro, currently is instance method, need static caller
             // this is needed to refine odometry angle calculations -- maybe call back to AutonOpMode
             if (gyroSetting.isGyroOn() && (loopCount % gyroSetting.getReadFrequency() == 0)) {
-                if (debugOn) Log.d(logTag, "About to set heading from gyro...");
+                if (debugOn) {
+                    if (imu != null) {
+                        double gyroHeadingReading = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES).firstAngle;
+                        double headingFromGyro = gyroHeadingReading + trackingPose.getInitialGyroOffset();
+                        double odometryHeadingError = trackingPose.getHeading() - headingFromGyro;
+                        Log.d(logTag, "Gyro Reading: " + format("%.2f", headingFromGyro) +
+                                " , Heading from Odometry: " + format("%.2f", trackingPose.getHeading()) +
+                                " , Error in Odometry Heading: " + format("%.2f", odometryHeadingError));
+                        Log.d(logTag, "Gyro Reading: " + format("%.2f", gyroHeadingReading + trackingPose.getInitialGyroOffset()));
+                    }
+                    //Log.d(logTag, "About to set heading from gyro...");
+                }
                 //trackingPose.setHeadingFromGyro(eBotsOpMode2019.getGyroReadingDegrees());  //Update heading with robot orientation
             }
 
 
 
 
-            timedOut = (timer.getElapsedTimeMillis() < timeLimit) ? false: true;
+            timedOut = (travelLegTimer.getElapsedTimeMillis() < timeLimit) ? false: true;
             isTargetPoseReached = checkTravelExitConditions(trackingPose, accuracy);
             if (debugOn) Log.d(logTag, "____________End Loop " + loopCount + "_________________");
 
@@ -182,7 +201,7 @@ public class eBotsMotionController {
 
         if (debugOn) {
             if (isTargetPoseReached) {
-                Log.d(logTag, "Pose Achieved in " + format("%.2f", timer.getElapsedTimeSeconds()));
+                Log.d(logTag, "Pose Achieved in " + format("%.2f", travelLegTimer.getElapsedTimeSeconds()));
             } else {
                 Log.d(logTag, "Failed to reach target, timed out!!! " + trackingPose.printError());
             }
@@ -191,7 +210,7 @@ public class eBotsMotionController {
         stopMotors();
     }
 
-    public static void activateDriveMotors(TrackingPose trackingPose, double xSig, double ySig, double spinSig, Speed speed){
+    public static void activateDriveMotors(TrackingPose trackingPose, double xSig, double ySig, double spinSig, Speed speed, SoftStart softStart, StopWatch travelLegTimer, Telemetry telemetry) {
         boolean debugOn = true;
         String logTag = "BTI_activateDriveMotors";
         if (debugOn) Log.d(logTag, "Entering activateDriveMotors");
@@ -200,7 +219,7 @@ public class eBotsMotionController {
         double travelDirectionRad = Math.atan2(ySig, xSig);
         double translateSig = Math.hypot(xSig, ySig);
         double robotHeadingRad = trackingPose.getHeadingRad();
-        double robotAngle = travelDirectionRad - robotHeadingRad + Math.PI/4;
+        double robotAngle = travelDirectionRad - robotHeadingRad + Math.PI / 4;
 
         //  Calculate the driveValues, ignoring spin for first pass
         double[] driveValues = new double[4];
@@ -210,18 +229,21 @@ public class eBotsMotionController {
         driveValues[2] = Math.sin(robotAngle) * translateSig;
         driveValues[3] = Math.cos(robotAngle) * translateSig;
 
-        if (debugOn) Log.d(logTag, "Drive vector, no spin or scaling: " + Arrays.toString(driveValues));
+        if (debugOn)
+            Log.d(logTag, "Drive vector, no spin or scaling: " + Arrays.toString(driveValues));
 
         //Now capture the max drive value from the array
         double maxDriveValue = findMaxAbsValue(driveValues);
         double maxSpeedSetting = speed.getMaxSpeed();
         //  Compare the max drive value to the speed setting, select the lower of the two for the scale factor
-        double appliedScale = (maxDriveValue < maxSpeedSetting) ? maxDriveValue : maxSpeedSetting;
+        double maxAllowedAbsValue = (maxDriveValue < maxSpeedSetting) ? maxDriveValue : maxSpeedSetting;
         //  Scale the drive values
-        scaleDrive(appliedScale/maxDriveValue, driveValues);
-        if (debugOn) Log.d(logTag, "Drive vector, no spin after scaling: " + Arrays.toString(driveValues));
+        double scaleFactor = (maxDriveValue == 0.0) ? 0.0 : maxAllowedAbsValue / maxDriveValue;
+        scaleDrive(scaleFactor, driveValues);
+        if (debugOn)
+            Log.d(logTag, "Drive vector, no spin after scaling: " + Arrays.toString(driveValues));
         //Now compare the spin signal to the speed setting
-        double conditionedSpinSignal = (speed.getTurnSpeed() < spinSig) ? speed.getTurnSpeed() : spinSig;
+        double conditionedSpinSignal = (speed.getTurnSpeed() < Math.abs(spinSig)) ? (speed.getTurnSpeed() * Math.signum(spinSig)) : spinSig;
 
         //Note, now that spin is field orientated, indices 0&2 are negative while 1&3 are positive
         driveValues[0] -= conditionedSpinSignal;
@@ -229,25 +251,32 @@ public class eBotsMotionController {
         driveValues[2] -= conditionedSpinSignal;
         driveValues[3] += conditionedSpinSignal;
 
-        if (debugOn) Log.d(logTag, "Drive vector, with spin no scaling: " + Arrays.toString(driveValues));
+        if (debugOn)
+            Log.d(logTag, "Drive vector, with spin no scaling: " + Arrays.toString(driveValues));
 
-        //Now scale the drive signals to makes sure no signal is greater than 1
+        //Now scale the drive signals to makes sure:
+        // a) no signal is greater than 1
+        // or b) no signal exceeds softStart criteria
         maxDriveValue = findMaxAbsValue(driveValues);
-        scaleDrive(1/maxDriveValue, driveValues);
-        if (debugOn) Log.d(logTag, "Output Drive vector, with spin and scaling: " + Arrays.toString(driveValues));
+        maxAllowedAbsValue = (maxDriveValue < 1.0) ? maxDriveValue : 1.0;
+
+        //Applies softStart if applicable (routine checks softStart to make sure active and relevant)
+        maxAllowedAbsValue = getSoftStartScalingFactor(softStart, maxAllowedAbsValue, travelLegTimer);
+        scaleFactor = (maxDriveValue == 0.0) ? 0.0 : maxAllowedAbsValue / maxDriveValue;
+
+        scaleDrive(scaleFactor, driveValues);
+        if (debugOn)
+            Log.d(logTag, "Output Drive vector, with spin and scaling (inc softStart): " + Arrays.toString(driveValues) +
+                    " elapsed time: " + travelLegTimer.toString());
+
+        writeMoveTelemetry(telemetry, driveValues, trackingPose);
 
         //  Finally, apply the calculated drive vectors
-        ArrayList<DcMotor> driveMotors = getDriveMotors();
-        if (driveMotors.size()>0) {
-            int i = 0;
-            for (DcMotor m : driveMotors) {
-                m.setPower(i++);
-            }
-        } else {
-            if(debugOn) Log.d(logTag, "No drive motors found");
+        int i = 0;
+        for (DcMotor m : getDriveMotors()) {
+            m.setPower(driveValues[i]);
+            i++;
         }
-
-
     }
 
     private static boolean checkTravelExitConditions(TrackingPose trackingPose, Accuracy accuracy){
@@ -281,7 +310,7 @@ public class eBotsMotionController {
     }
 
     private static boolean isSignDifferent(double errorValue, double errorSumValue){
-        boolean debugOn = true;
+        boolean debugOn = false;
         String logTag = "BTI_isSignDifferent";
         boolean returnValue;
         if (errorSumValue == 0.0 | (Math.signum(errorValue) == Math.signum(errorSumValue))) {
@@ -299,6 +328,25 @@ public class eBotsMotionController {
         Log.d(logTag, "Target Position " + trackingPose.getTargetPose().toString());
         Log.d(logTag, "Error " + trackingPose.printError());
 
+    }
+
+    private static void writeMoveTelemetry(Telemetry telemetry, double[] driveValues, TrackingPose trackingPose){
+        telemetry.clear();
+        telemetry.addData("Motors Found", getDriveMotors().size());
+        telemetry.addData("Drive Values", formatArray(driveValues));
+        telemetry.addLine(trackingPose.toString());
+        telemetry.addLine(trackingPose.getTargetPose().toString());
+        telemetry.addLine(trackingPose.printError());
+        telemetry.update();
+    }
+
+    private static String formatArray(double[] driveValues){
+        String out = "";
+        for(int i=0; i<driveValues.length; i++){
+            if (i>0) out = out + ", ";
+            out = out + "[" + format("%.2f", driveValues[i]) + "]";
+        }
+        return out;
     }
 
 }

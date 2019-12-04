@@ -73,6 +73,12 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
     //  2m Distance Sensor
     protected DistanceSensor frontDistSensor;
 
+    //  Encoders
+    protected EncoderTracker forwardTracker;
+    protected EncoderTracker forwardTracker2;
+    protected EncoderTracker lateralTracker;
+
+
 
 
     public BNO055IMU imu;          //Create a variable for the gyroscope on the Expansion Hub
@@ -96,8 +102,10 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
     //  2019 eBots
     //  DEFINE CONSTANTS FOR THE ROBOT
     //------CONSTANTS FOR SERVO POSITIONS
-    protected final Double RAKE_DOWN = 0.90;
-    protected final Double RAKE_UP = 0.25;
+    //protected final Double RAKE_DOWN = 0.90;
+    protected final Double RAKE_DOWN = 0.85;
+    //protected final Double RAKE_UP = 0.25;
+    protected final Double RAKE_UP = 0.00;
 
     protected final Double CLAW_OPEN = 0.390;
     protected final Double CLAW_CLOSED = 0.05;
@@ -137,7 +145,6 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
     protected double rollerGripperPowerLevel = 0.8;
 
     protected Boolean clawOpen = true;
-
 
 
     //  2018 Constants
@@ -328,6 +335,12 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
 
     }
 
+    public void initializeDriveMotors(boolean areWiresReversed){
+        ArrayList<DcMotor> motorList = new ArrayList<>();
+        initializeDriveMotors(motorList, areWiresReversed);
+    }
+
+    //this one is deprecated because driveMotors was promoted to a class variable
     public void initializeDriveMotors(ArrayList<DcMotor> motorList, boolean areWiresReversed){
         if (motorList.size()>1) motorList.clear();  //Make sure there aren't any items in the list
 
@@ -402,6 +415,41 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         frontDistSensor = hardwareMap.get(DistanceSensor.class, "sensor_range");
 
     }
+
+    protected void initializeEncoderTrackers(){
+        //Initialize virtual encoders
+        EncoderTracker.purgeExistingEncoderTrackers();
+        Log.d("initEncoderTrackersVir", "Initializing Virtual Encoders");
+        VirtualEncoder virForwardEncoder = new VirtualEncoder();  //if using virtual
+        VirtualEncoder virForwardEncoder2 = new VirtualEncoder();  //if using virtual
+        VirtualEncoder virLateralEncoder = new VirtualEncoder();  //if using virtual
+        forwardTracker = new EncoderTracker(virForwardEncoder, EncoderTracker.RobotOrientation.FORWARD);
+        forwardTracker2 = new EncoderTracker(virForwardEncoder2, EncoderTracker.RobotOrientation.FORWARD);
+        forwardTracker2.setSpinBehavior(EncoderTracker.SpinBehavior.DECREASES_WITH_ANGLE);
+        //I expected this one to be reversed, but it wasn't
+        forwardTracker2.setClickDirection(EncoderTracker.ClickDirection.STANDARD);
+        lateralTracker = new EncoderTracker(virLateralEncoder, EncoderTracker.RobotOrientation.LATERAL);
+    }
+
+    protected void initializeEncoderTrackers(ArrayList<DcMotor> motorList){
+        //Initialize actual encoders
+
+        EncoderTracker.purgeExistingEncoderTrackers();      //Clean out any pre-existing encoders
+
+        Log.d("initEncoderTrackersReal", "Initializing Real Encoders");
+        forwardTracker = new EncoderTracker(backRight, EncoderTracker.RobotOrientation.FORWARD);
+        forwardTracker.setSpinRadius(7.53);
+
+        lateralTracker = new EncoderTracker(frontRight, EncoderTracker.RobotOrientation.LATERAL);
+        lateralTracker.setSpinRadius(3.82);
+
+        forwardTracker2 = new EncoderTracker(backLeft, EncoderTracker.RobotOrientation.FORWARD);
+        forwardTracker2.setSpinBehavior(EncoderTracker.SpinBehavior.DECREASES_WITH_ANGLE);
+        forwardTracker2.setClickDirection(EncoderTracker.ClickDirection.REVERSE);
+        forwardTracker2.setSpinRadius(7.53);
+
+    }
+
 
     protected void findLifterZero(){
         /**
@@ -875,6 +923,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         currentRollDegrees = angles.secondAngle;
         return currentHeading;
     }
+
 
     public double getGyroReadingRad(){
         radAngles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.RADIANS);

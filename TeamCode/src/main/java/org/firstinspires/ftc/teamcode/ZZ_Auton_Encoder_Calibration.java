@@ -62,6 +62,7 @@ public class ZZ_Auton_Encoder_Calibration extends eBotsAuton2019 {
         String loopMetrics = "Loop Initialized";
         writeOdometryTelemetry();
 
+
         waitForStart();
 
         StopWatch overallTime = new StopWatch();
@@ -75,6 +76,7 @@ public class ZZ_Auton_Encoder_Calibration extends eBotsAuton2019 {
     protected void writeOdometryTelemetry() {
 
         telemetry.addData("forwardTracker: ", forwardTracker.toString());
+        telemetry.addData("forwardTracker2: ", forwardTracker2.toString());
         telemetry.addData("lateralTracker: ", lateralTracker.toString());
         telemetry.update();
     }

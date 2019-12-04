@@ -19,7 +19,7 @@ public class VirtualEncoder {
     }
 
     public void simulateLoopOutput(Double distance, Double encoderAngleRad, RobotOrientation robotOrientation){
-        boolean debugOn = true;
+        boolean debugOn = false;
         String logTag = "BTI_simLoopOut(Trans)";
         double distanceComponent;
         if(robotOrientation == RobotOrientation.FORWARD){
@@ -38,7 +38,8 @@ public class VirtualEncoder {
     }
 
     public void simulateLoopOutput (double distance, double encoderAngleRad, RobotOrientation ro, double spinDistance){
-
+        boolean debugOn = false;
+        String logTag = "BTI_simulateLoopOutput";
         //  Start with translation component
         simulateLoopOutput(distance, encoderAngleRad, ro);
 
@@ -48,7 +49,7 @@ public class VirtualEncoder {
 
         double encoderAngleDeg = Math.toDegrees(encoderAngleRad);
 
-        Log.d(debugTag, spinClicks + " spin clicks applied to "
+        if (debugOn) Log.d(logTag, spinClicks + " spin clicks applied to "
                 + ro.name() + " encoder");
 
     }
@@ -64,7 +65,7 @@ public class VirtualEncoder {
     }
 
     public static Double calculateSimulatedRotation(double spinSignal, long timeStepMillis){
-        boolean debugOn = true;
+        boolean debugOn = false;
         String logTag = "BTI_calcSimRot";
         double actualAngularSpeed = spinSignal * angularTopSpeed;
         double rotationAngle = actualAngularSpeed * (timeStepMillis / 1000.0);

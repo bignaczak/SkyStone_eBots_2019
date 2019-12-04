@@ -58,11 +58,23 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
     protected Double computedSignal=0.0;
     protected Double outputSignal=0.0;
 
-    protected EncoderTracker forwardTracker;
-    protected EncoderTracker forwardTracker2;
-    protected EncoderTracker lateralTracker;
     protected ArrayList<Pose> wayPoses;
     protected Foundation foundation;
+
+    /****************************************************************
+     //******    CONFIGURATION PARAMETERS
+     //***************************************************************/
+    protected Speed speedConfig;
+    protected GyroSetting gyroConfig;
+    protected SoftStart softStartConfig;
+    protected Accuracy accuracyConfig;
+
+    //  These get assigned through the configuration file
+    protected Alliance alliance;
+    protected FieldSide fieldSide;
+    protected DelayedStart delayedStart;
+    protected StopWatch overallTime;
+
     /****************************************************************/
 
     /*****************************************************************
@@ -94,9 +106,9 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
     }
 
     public enum Speed{
-        SLOW (0.35, 0.3, 0.15, 0.0, 0.0, 0.02, 0.00, 0.0),
-        MEDIUM (0.60,0.4,  0.07, 0.015, 0.0, 0.04, 0.01, 0.0),
-        FAST (0.8, 0.4, 0.04, 0.008, 0.0,0.05, 0.005,0.0);
+        SLOW (0.35, 0.3, 0.35, 0.0, 0.0, 0.1, 0.0, 0.0),
+        MEDIUM (0.60,0.4,  0.17, 0.0, 0.0, 0.1, 0.0, 0.0),
+        FAST (0.8, 0.6, 0.10, 0.0, 0.0,0.07, 0.0,0.0);
 
         /**  ENUM VARIABLES     **************/
         private double maxSpeed;
@@ -136,7 +148,7 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
 
     public enum GyroSetting{
         NONE(false, -1),
-        INFREQUENT (true, 25),
+        INFREQUENT (true, 10),
         EVERY_LOOP (true, 1);
 
         /**  ENUM VARIABLES     **************/
@@ -178,9 +190,9 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
     }
 
     public enum Accuracy{
-        LOOSE (10.0, 0.5, 500.0, 500.0),
-        STANDARD (5.0, 0.5, 10.0, 1.0),
-        TIGHT (2.5, 0.1, 25.0, 25.0);
+        LOOSE (5.0, 0.5, 0.40, 0.10),
+        STANDARD (2.5, 0.25, 0.20, 0.10),
+        TIGHT (1.0, 0.15, 0.10, 0.10);
 
         /**  ENUM VARIABLES     **************/
 
@@ -245,6 +257,123 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
     /*****************************************************************
      //******    CLASS METHODS
      //****************************************************************/
+    protected void importConfigurationFile(){
+        //Read in the configuration file
+        String logTag = "BTI_importConfigFile";
+        Log.d(logTag, "Entering importConfigurationFile");
+
+        //Read in the configuration settings as an arraylist
+        ArrayList<String> configArray = eBotsConfigIO.parseAutonConfigFile();
+
+        //Convert the read-in text values into enumerations
+        ListIterator<String> listIterator = configArray.listIterator();
+
+        //Get all the config values, starting with alliance
+        String configValue = listIterator.next();
+
+        for(Alliance a: Alliance.values()){
+            if (configValue.equalsIgnoreCase(a.name())){
+                alliance = a;
+                Log.d(logTag, "Alliance Assigned: " + alliance.name());
+            }
+        }
+
+        //Next config is field side
+        configValue = listIterator.next();
+
+        for(FieldSide f: FieldSide.values()){
+            if (configValue.equalsIgnoreCase(f.name())){
+                fieldSide = f;
+                Log.d(logTag, "Field Side Assigned: " + fieldSide.name());
+            }
+        }
+
+        //Next config is delayed start
+        configValue = listIterator.next();
+
+        for(DelayedStart d: DelayedStart.values()){
+            if (configValue.equalsIgnoreCase(d.name())){
+                delayedStart = d;
+                Log.d(logTag, "Delayed Start Assigned: " + delayedStart.name());
+            }
+        }
+    }
+
+    protected TrackingPose getFirstTrackingPose(){
+        //  *********  INITIALIZE FOR FIRST MOVEMENT   *****************
+        //  Create trackingPose, which is the tracked position from start to target
+        //  This is a special type of pose that is intended to track the path of travel
+        //  It has a targetPose, which is the intended destination
+        //  It also has an error object which tracks it's status relative to targetPose
+        boolean debugOn = true;
+        String logTag = "BTI_getFirstTrack";
+        if (debugOn) Log.d(logTag, "Entering getFirstTrackingPose " + alliance.name() + " " + fieldSide.name() + " " + delayedStart.name());
+
+        Pose startPose;
+        Pose targetPose;
+        //  The first target pose depends on which side is being pursued
+        if (fieldSide == FieldSide.QUARRY){
+            //  This target pose is used if SkyStone not found in first scan
+            startPose = getOpModeStartPose();
+            targetPose = new Pose(startPose.getX()-6.5, startPose.getY(), startPose.getHeading());
+        } else {
+            //  Delayed Start and Foundation side uses a series of poses
+            wayPoses = new ArrayList<>();
+            setWayPoses(wayPoses, alliance, fieldSide, delayedStart);
+            ListIterator<Pose> listIterator = wayPoses.listIterator();
+            if (debugOn) Log.d(logTag, "wayPose count: " + wayPoses.size());
+
+            if (listIterator.hasNext()) {
+                //Make sure have enough poses to construct StartPose
+                startPose = listIterator.next();
+                //Now remove the first item from the list
+                listIterator.remove();
+                if (debugOn) Log.d(logTag, "startPose defined, wayPose count: " + wayPoses.size());
+
+            } else{
+                startPose = getOpModeStartPose();
+            }
+
+            if (listIterator.hasNext()) {  //Make sure there are at least 2 points
+                targetPose = listIterator.next();
+                //Now remove the first item from the list
+                listIterator.remove();
+                if (debugOn) Log.d(logTag, "targetPose defined, wayPose count: " + wayPoses.size());
+
+            } else {    //Set end point same as start point (road to nowhere)
+                targetPose = startPose;
+            }
+        }
+        TrackingPose trackingPose = new TrackingPose(startPose, targetPose);
+
+        //  IMPORTANT STEP
+        //  Capture the initial gyro offset for later use, it must be passed to each tracking pose
+        if (useGyroForNavigation) {
+            trackingPose.setInitialGyroOffset(getGyroReadingDegrees());  //This is called only once to document offset of gyro from field coordinate system
+        } else {
+            trackingPose.setInitialGyroOffset(0.0);
+        }
+        if (debugOn) Log.d(logTag, "Tracking Pose acquired " + trackingPose.toString());
+        if (debugOn) Log.d(logTag, "with targetPose acquired " + trackingPose.getTargetPose().toString());
+        return trackingPose;
+    }
+
+    protected Pose getOpModeStartPose() {
+        Pose startPose;
+        if (fieldSide == FieldSide.QUARRY){
+            startPose = new Pose(Pose.StartingPose.QUARRY);
+        } else {
+            startPose = new Pose(Pose.StartingPose.FOUNDATION);
+        }
+
+        if (alliance == Alliance.RED){
+            applyRedAlliancePoseTransform(startPose);
+        }
+        return startPose;
+    }
+
+
+
 
     protected void setWayPoses(ArrayList<Pose> wayPoses, Alliance alliance, FieldSide fieldSide, DelayedStart delayedStart) {
         /**  This function sets the wayPoses for blue side and then applies a
@@ -339,7 +468,11 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
         useGyroForNavigation = gyroSetting.isGyroOn();
         gyroCallFrequency = gyroSetting.getReadFrequency();
 
-        if (useGyroForNavigation) initializeImu();
+        if (useGyroForNavigation) {
+            initializeImu();
+        } else {
+            imu = null;
+        }
     }
 
     protected void setSpeedConfiguration(Speed speedConfig){
@@ -390,29 +523,6 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
         return "pSig/iSig/outSig: " + format("%.3f", pSignal) + " / " + format("%.3f", iSignal) + " / " + format("%.3f" ,outputSignal);
     }
 
-    protected void initializeEncoderTrackers(){
-        //Initialize virtual encoders
-        EncoderTracker.purgeExistingEncoderTrackers();
-        Log.d("initEncoderTrackersVir", "Initializing Virtual Encoders");
-        VirtualEncoder virForwardEncoder = new VirtualEncoder();  //if using virtual
-        VirtualEncoder virForwardEncoder2 = new VirtualEncoder();  //if using virtual
-        VirtualEncoder virLateralEncoder = new VirtualEncoder();  //if using virtual
-        forwardTracker = new EncoderTracker(virForwardEncoder, EncoderTracker.RobotOrientation.FORWARD);
-        forwardTracker2 = new EncoderTracker(virForwardEncoder2, EncoderTracker.RobotOrientation.FORWARD);
-        forwardTracker2.setSpinBehavior(EncoderTracker.SpinBehavior.DECREASES_WITH_ANGLE);
-        forwardTracker2.setClickDirection(EncoderTracker.ClickDirection.REVERSE);
-        lateralTracker = new EncoderTracker(virLateralEncoder, EncoderTracker.RobotOrientation.LATERAL);
-    }
-
-    protected void initializeEncoderTrackers(ArrayList<DcMotor> motorList){
-        //Initialize actual encoders
-
-        EncoderTracker.purgeExistingEncoderTrackers();      //Clean out any pre-existing encoders
-
-        Log.d("initEncoderTrackersReal", "Initializing Real Encoders");
-        forwardTracker = new EncoderTracker(backRight, EncoderTracker.RobotOrientation.FORWARD);
-        lateralTracker = new EncoderTracker(frontRight, EncoderTracker.RobotOrientation.LATERAL);
-    }
 
 
     protected TrackingPose travelToNextPose(TrackingPose currentPose){
@@ -605,6 +715,29 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
         Double accelSlope = (outputSignal - minPowerLimit) / softStartDurationMillis;
         Long t = stopWatch.getElapsedTimeMillis();
         Double softStartScale = (accelSlope * t) + minPowerLimit;
+        return softStartScale;
+    }
+    protected static Double getSoftStartScalingFactor(SoftStart softStart, double maxDrive, StopWatch stopWatch){
+        /**     This function calculates the Soft Start scaling
+         */
+        //make sure that the input maxDrive value is a) absolute value
+        maxDrive = Math.abs(maxDrive);
+        Double softStartScale= maxDrive;
+        Long t = stopWatch.getElapsedTimeMillis();
+        //Verify that
+        // a) softStart is on
+        // b) and within time limit
+        // c) and larger than minPower of softStart
+        if (softStart.isSoftStartOn()
+                && t < softStart.getDurationMillis()
+                && maxDrive > softStart.getMinPower())
+            {
+                //First calculate he acceleration slope
+                Double accelSlope = (maxDrive - softStart.getMinPower()) / softStart.getDurationMillis();
+                softStartScale = (accelSlope * t) + softStart.getMinPower();
+            }
+
+
         return softStartScale;
     }
 
@@ -902,7 +1035,7 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
 
     protected void recordQuarryObservations(QuarryStone firstStone, QuarryStone secondStone, QuarryStone thirdStone, Alliance alliance){
         int numObservations = 0;
-        long timeout = 2000L;
+        long timeout = 3500L;
         StopWatch timer = new StopWatch();
 
         if (tfod != null) {
