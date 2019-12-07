@@ -870,24 +870,22 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
     public void lowerRake() {
         //This will also straighten arm and lower lifter
 
-        straightenRotate1();
-        lowerLifter();
-
-        foundationRake.setPosition(RAKE_DOWN);
         StopWatch stopWatch = new StopWatch();
         stopWatch.startTimer();
+        rake2.setPower(RAKE2_DOWN);
         while (stopWatch.getElapsedTimeMillis() < 1000) {
             //lowering rake
         }
     }
 
     protected void raiseRake(){
-        foundationRake.setPosition(RAKE_UP);
+        rake2.setPower(RAKE2_UP);
         StopWatch stopWatch = new StopWatch();
         stopWatch.startTimer();
-        while(stopWatch.getElapsedTimeMillis()<1000){
+        while(stopWatch.getElapsedTimeMillis()<500){
             //RAISING rake
         }
+        rake2.setPower(RAKE2_STOP);
     }
 
 
@@ -906,23 +904,23 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
         String logTag = "BTI_surveyQuarry";
 
         ArrayList<QuarryStone> observedQuarryStones = new ArrayList<>();
-        assignObservedQuarryStones(alliance, observedQuarryStones,1);
+        assignObservedQuarryStones(observedQuarryStones,1);
 
 
         recordQuarryObservations(observedQuarryStones.get(0), observedQuarryStones.get(1)
-                , observedQuarryStones.get(2), alliance);
+                , observedQuarryStones.get(2));
         if (debugOn) Log.d(logTag, "Quarry Observed " + overallTime.toString());
 
         TrackingPose endPose = currentPose;
-        if(QuarryStone.getCountSkyStones() == 0 && QuarryStone.getCountObserved() <= 1) {
+        if(QuarryStone.getCurrentCountSkyStones() == 0 && QuarryStone.getCountObservedStones() <= 1) {
             //If didn't see more than one stone, move right a little and try again
-            if (debugOn) Log.d(logTag, "SkyStone not identified, extending search..." + QuarryStone.getCountObserved() +
+            if (debugOn) Log.d(logTag, "SkyStone not identified, extending search..." + QuarryStone.getCountObservedStones() +
                     " stone's observed");
             endPose = travelToNextPose(currentPose);
-            assignObservedQuarryStones(alliance, observedQuarryStones,1);
+            assignObservedQuarryStones(observedQuarryStones,2);
 
             recordQuarryObservations(observedQuarryStones.get(0), observedQuarryStones.get(1)
-                    , observedQuarryStones.get(2), alliance);
+                    , observedQuarryStones.get(2));
         }
 
         //  TODO:  Improve this logic for inclusion of second vantage point
@@ -930,7 +928,8 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
         return endPose;
     }
 
-    protected void assignObservedQuarryStones(Alliance alliance, ArrayList<QuarryStone> observedQuarryStones, int vantagePoint){
+
+    protected void assignObservedQuarryStones(ArrayList<QuarryStone> observedQuarryStones, int vantagePoint){
         QuarryStone firstStone;
         QuarryStone secondStone;
         QuarryStone thirdStone;
@@ -963,15 +962,15 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
         observedQuarryStones.add(thirdStone);
     }
 
-    protected void observeQuarry(TrackingPose currentPose) {
+    protected void observeQuarry(TrackingPose trackingPose) {
         //Based on the Pose x coordinate, determine which stones are being viewed
         QuarryStone firstStone;
         QuarryStone secondStone;
-        if (currentPose.getX() < -55.0) {
+        if (trackingPose.getX() < -55.0) {
             //Near the end of the field
             firstStone = QuarryStone.getQuarryStone(QuarryStone.StoneLocation.ZERO);
             secondStone = QuarryStone.getQuarryStone(QuarryStone.StoneLocation.ONE);
-        } else if (currentPose.getX() < -39.0) {
+        } else if (trackingPose.getX() < -39.0) {
             firstStone = QuarryStone.getQuarryStone(QuarryStone.StoneLocation.TWO);
             secondStone = QuarryStone.getQuarryStone(QuarryStone.StoneLocation.THREE);
         } else {
@@ -1033,7 +1032,7 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
         }
     }
 
-    protected void recordQuarryObservations(QuarryStone firstStone, QuarryStone secondStone, QuarryStone thirdStone, Alliance alliance){
+    protected void recordQuarryObservations(QuarryStone firstStone, QuarryStone secondStone, QuarryStone thirdStone){
         int numObservations = 0;
         long timeout = 3500L;
         StopWatch timer = new StopWatch();
@@ -1093,7 +1092,7 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
         String logTag = "BTI_determineSkyStone.";
         Log.d(logTag, "Determining Stone Pattern...");
         QuarryStone.StoneLocation observedSkyStoneLocation;
-        //Based on which position the observed skyStone was, the pa
+        //Based on which position the observed skyStone was
         if (firstStone.isSkyStone()){
             Log.d(logTag, "First stone is skystone " + firstStone.toString());
             observedSkyStoneLocation = firstStone.getStoneLocation();

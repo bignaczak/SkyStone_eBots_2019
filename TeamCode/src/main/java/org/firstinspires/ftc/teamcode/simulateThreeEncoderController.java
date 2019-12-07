@@ -3,10 +3,12 @@ package org.firstinspires.ftc.teamcode;
 import android.util.Log;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 
 import static org.firstinspires.ftc.teamcode.eBotsMotionController.moveToTargetPose;
 
 @Autonomous
+@Disabled
 public class simulateThreeEncoderController extends eBotsAuton2019 {
 
     /****************************************************************

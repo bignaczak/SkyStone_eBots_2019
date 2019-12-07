@@ -63,8 +63,11 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
     protected Servo rotate1ClawServo;
     protected Servo rotate2ClawServo;
     protected CRServo extendArm;
+    protected CRServo yoyo;
+    protected CRServo rake2;
     protected Servo claw;
     protected DcMotor rollerGripper;
+    protected Servo markerDropper;
 
     //  Limit Switches
     protected DigitalChannel lifterLimit1;
@@ -103,15 +106,23 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
     //  DEFINE CONSTANTS FOR THE ROBOT
     //------CONSTANTS FOR SERVO POSITIONS
     //protected final Double RAKE_DOWN = 0.90;
-    protected final Double RAKE_DOWN = 0.85;
+    protected final double RAKE_DOWN = 0.85;
     //protected final Double RAKE_UP = 0.25;
-    protected final Double RAKE_UP = 0.00;
+    protected final double RAKE_UP = 0.00;
 
-    protected final Double CLAW_OPEN = 0.390;
-    protected final Double CLAW_CLOSED = 0.05;
+    protected final double CLAW_OPEN = 0.390;
+    protected final double CLAW_CLOSED = 0.05;
 
-    protected final Double ROTATE1_CLAW_FORWARD = 0.846;
-    protected final Double ROTATE1_CLAW_90 = 0.319;
+    protected final double ROTATE1_CLAW_FORWARD = 0.846;
+    protected final double ROTATE1_CLAW_90 = 0.319;
+
+    protected final double RETAIN_MARKER = 0.1;
+    protected final double DROP_MARKER = 0.70;
+
+    protected final double RAKE2_DOWN = 0.6;
+    protected final double RAKE2_UP = -0.6;
+    protected final double RAKE2_STOP = 0.0;
+
 
 
     protected final Double ROTATE2_CLAW_FORWARD = 0.798;
@@ -386,20 +397,14 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         lifter.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         lifter.setPower(lifterPowerLevel);
 
-        foundationRake = hardwareMap.get(Servo.class, "foundationRake");
-        rotate1ClawServo = hardwareMap.get(Servo.class, "rotate1Claw");
-        rotate2ClawServo = hardwareMap.get(Servo.class, "rotate2Claw");
-        extendArm = hardwareMap.get(CRServo.class, "extendArm");
-        //claw = hardwareMap.get(Servo.class, "claw");
+        //foundationRake = hardwareMap.get(Servo.class, "foundationRake");
+        yoyo = hardwareMap.get(CRServo.class, "yoyo");
+        rake2 = hardwareMap.get(CRServo.class, "rake2");
         rollerGripper = hardwareMap.get(DcMotor.class, "rollerGripper");
+        markerDropper = hardwareMap.get(Servo.class, "markerDropper");
 
-        foundationRakePosition = foundationRake.getPosition();
-        rotate1ClawPosition = rotate1ClawServo.getPosition();
-        rotate2ClawPosition = rotate2ClawServo.getPosition();
-        //clawPosition = claw.getPosition();
-
-
-
+        //foundationRakePosition = foundationRake.getPosition();
+        markerDropper.setPosition(RETAIN_MARKER);
     }
 
     public void initializeLimitSwitches(){
@@ -456,7 +461,15 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
          * Method to lower lifter until limit switch is contacted to set zero point
          */
         StopWatch timer = new StopWatch();
-        Long timeout = 3000L;
+
+        //Before find zero, move rake out of the way
+        Long timeout = 250L;
+        while (opModeIsActive() && timer.getElapsedTimeMillis() < timeout){
+            rake2.setPower(RAKE2_DOWN);
+        }
+        rake2.setPower(RAKE2_STOP);
+
+        timeout = 2500L;
         lifter.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         lifter.setPower(0.25);   //  was 0.6
         timer.startTimer();
@@ -800,16 +813,33 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
             m.setPower(driveValues[i]);
             i++;
         }
+        //This is a little strange, allows for both controllers to manipulate the rake
+        //  Precedence is given to the driver
+        if(gamepad1.a){
+            rake2.setPower(RAKE2_DOWN);
+        } else if (gamepad1.y){
+            rake2.setPower(RAKE2_UP);
+        } else if (gamepad2.a){
+            rake2.setPower(RAKE2_DOWN);
+        } else if (gamepad2.y){
+            rake2.setPower(RAKE2_UP);
+        } else rake2.setPower(RAKE2_STOP);
+
     }
 
     protected void processManualManipControls(){
         //GAMEPAD2 INPUTS
         //----------------------------------------
-        //Y - raise foundation rake (has override)
-        //A - lower foundation rake (has override)
+        //Y - raise foundation rake (written in driver controls)
+        //A - lower foundation rake (written in driver controls)
+        //X - Extend tape measure
+        //B - Retract tape measure
         //dpad_Down - Set lifter height to grab stone
         //left Stick - lifter up and down
+        //Right Bumper - Release stone
+        //Right Trigger - Grab Stone
         //left_bumper + right_stick_y - Adjust lifter speed
+        //Right Stick - Drop marker
 
         //***************************************************************
         //Initialize the variables that are being used in the main loop
@@ -819,27 +849,8 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
 
 
         //----------RAKE INPUTS----------------
-        if (gamepad2.y && !gamepad2.left_bumper){
-            foundationRakePosition = RAKE_UP;
-            rakeTimer.startTimer();
-            foundationRake.setPosition(foundationRakePosition);
-
-        } else if (gamepad2.a && !gamepad2.left_bumper){
-            foundationRakePosition = RAKE_DOWN;
-            rakeTimer.startTimer();
-            foundationRake.setPosition(foundationRakePosition);
-
-            //these 2 are override conditions
-        } else if(gamepad2.a && gamepad2.left_bumper) {
-            if (foundationRakePosition < 1.0) foundationRakePosition += rakeIncrement;
-            rakeTimer.startTimer();
-            foundationRake.setPosition(foundationRakePosition);
-        } else if(gamepad2.y && gamepad2.left_bumper) {
-            if (foundationRakePosition > 0.0) foundationRakePosition -= rakeIncrement;
-            rakeTimer.startTimer();
-            foundationRake.setPosition(foundationRakePosition);
-        } else if (rakeTimer.getElapsedTimeMillis()>timerLimit){
-        }
+        //  These are now handled in the driver inputs
+        //    Gamepad2 can still control rake, but lower in priority
 
         //----------rollerGripper INPUTS----------------
         if (gamepad2.right_bumper && !gamepad2.left_bumper) {
@@ -887,22 +898,23 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
             lifter.setPower(lifterPowerLevel);
             lifterTimer.startTimer();
         }
+        //----------Extend the tape measure for parking----------------
+        if (gamepad2.x){
+            yoyo.setPower(-0.6);
+        } else if (gamepad2.b){
+            yoyo.setPower(0.6);
+        } else yoyo.setPower(0.0);
 
-    }
+        //----------Drop the marker----------------
+        if (gamepad2.right_stick_y > 0.3) {
+            markerDropper.setPosition(DROP_MARKER);
+        } else if (gamepad2.right_stick_y < 0.3){
+            markerDropper.setPosition(RETAIN_MARKER);
+        }
+
+        }
     protected void processAutomatedManipControls(){
         //GAMEPAD2 INPUTS
-        //----------------------------------------
-        //Y - raise foundation rake (has override)
-        //A - lower foundation rake (has override)
-        //dpad_Down - Set lifter height to grab stone
-        //left Stick - lifter up and down
-        //***************************************************************
-        //Initialize the variables that are being used in the main loop
-        //***************************************************************
-        StopWatch rakeTimer = new StopWatch();
-        StopWatch lifterTimer = new StopWatch();
-        Boolean rakeBusy = false;
-        Boolean lifterBusy = false;
 
         //----------rollerGripper INPUTS----------------
         if(gamepad2.left_bumper && gamepad2.left_trigger > 0.3){

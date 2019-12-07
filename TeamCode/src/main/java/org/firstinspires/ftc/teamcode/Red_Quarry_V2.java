@@ -13,19 +13,18 @@ import static java.lang.String.format;
 public class Red_Quarry_V2 extends eBotsAuton2019 {
 
 
-    /****************************************************************
-     //******    CONFIGURATION PARAMETERS
-     //***************************************************************/
-    private Alliance alliance = Alliance.RED;
-    private FieldSide fieldSide = FieldSide.QUARRY;
-    private Speed speedConfig = Speed.FAST;
-    private GyroSetting gyroConfig = GyroSetting.EVERY_LOOP;
-    private SoftStart softStartConfig = SoftStart.MEDIUM;
-    private Accuracy accuracyConfig = Accuracy.STANDARD;
-
 
     @Override
     public void runOpMode(){
+        // Set config variables
+        alliance = Alliance.RED;
+        fieldSide = FieldSide.QUARRY;
+        speedConfig = Speed.FAST;
+        gyroConfig = GyroSetting.EVERY_LOOP;
+        softStartConfig = SoftStart.MEDIUM;
+        accuracyConfig = Accuracy.STANDARD;
+        delayedStart = DelayedStart.NO;
+
         /** APPLY CONFIG     **************/
         setGyroConfiguration(gyroConfig);      //Set gyro parameters and initialize
         setSpeedConfiguration(speedConfig);    //Set speed and PID gain limits
@@ -111,22 +110,22 @@ public class Red_Quarry_V2 extends eBotsAuton2019 {
         Log.d(logTag, "Ready to grab stone " + overallTime.toString());
 
         ArrayList<QuarryStone> observedQuarryStones = new ArrayList<>();
-        assignObservedQuarryStones(alliance, observedQuarryStones,1);
+        assignObservedQuarryStones(observedQuarryStones,1);
 
 
         recordQuarryObservations(observedQuarryStones.get(0), observedQuarryStones.get(1)
-                , observedQuarryStones.get(2), alliance);
+                , observedQuarryStones.get(2));
         Log.d(logTag, "Quarry Observed " + overallTime.toString());
 
-        if(QuarryStone.getCountSkyStones() == 0 && QuarryStone.getCountObserved() <= 1) {
+        if(QuarryStone.getCurrentCountSkyStones() == 0 && QuarryStone.getCountObservedStones() <= 1) {
             //If didn't see more than one stone, move right a little and try again
-            Log.d(logTag, "SkyStone not identified, extending search..." + QuarryStone.getCountObserved() +
+            Log.d(logTag, "SkyStone not identified, extending search..." + QuarryStone.getCountObservedStones() +
                     " stone's observed");
             endPose = travelToNextPose(currentPose);
-            assignObservedQuarryStones(alliance, observedQuarryStones,1);
+            assignObservedQuarryStones(observedQuarryStones,1);
 
             recordQuarryObservations(observedQuarryStones.get(0), observedQuarryStones.get(1)
-                    , observedQuarryStones.get(2), alliance);
+                    , observedQuarryStones.get(2));
         }
 
         //  TODO:  Improve this logic for inclusion of second vantage point

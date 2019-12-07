@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode;
 import android.util.Log;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 
@@ -12,9 +13,8 @@ import java.util.ListIterator;
 import static org.firstinspires.ftc.teamcode.eBotsMotionController.moveToTargetPose;
 
 @Autonomous
+@Disabled
 public class E3_UsingConfig extends eBotsAuton2019 {
-
-
 
     @Override
     public void runOpMode(){
@@ -24,7 +24,7 @@ public class E3_UsingConfig extends eBotsAuton2019 {
         //***************************************************************
         // ******    CONFIGURATION PARAMETERS
         // ***************************************************************/
-        speedConfig = Speed.SLOW;
+        speedConfig = Speed.MEDIUM;
         gyroConfig = GyroSetting.INFREQUENT;
         softStartConfig = SoftStart.MEDIUM;
         accuracyConfig = Accuracy.STANDARD;
@@ -260,23 +260,23 @@ public class E3_UsingConfig extends eBotsAuton2019 {
         String logTag = "BTI_surveyQuarry2";
 
         ArrayList<QuarryStone> observedQuarryStones = new ArrayList<>();
-        assignObservedQuarryStones(alliance, observedQuarryStones,1);
+        assignObservedQuarryStones(observedQuarryStones,1);
 
 
         recordQuarryObservations(observedQuarryStones.get(0), observedQuarryStones.get(1)
-                , observedQuarryStones.get(2), alliance);
+                , observedQuarryStones.get(2));
         if (debugOn) Log.d(logTag, "Quarry Observed " + overallTime.toString());
 
         //TrackingPose endPose = currentPose;
-        if(QuarryStone.getCountSkyStones() == 0 && QuarryStone.getCountObserved() <= 1) {
+        if(QuarryStone.getCurrentCountSkyStones() == 0 && QuarryStone.getCountObservedStones() <= 1) {
             //If didn't see more than one stone, move right a little and try again
-            if (debugOn) Log.d(logTag, "SkyStone not identified, extending search..." + QuarryStone.getCountObserved() +
+            if (debugOn) Log.d(logTag, "SkyStone not identified, extending search..." + QuarryStone.getCountObservedStones() +
                     " stone's observed");
             moveToTargetPose(trackingPose, speedConfig, gyroConfig, accuracyConfig, softStartConfig,imu, telemetry);
-            assignObservedQuarryStones(alliance, observedQuarryStones,1);
+            assignObservedQuarryStones(observedQuarryStones,1);
 
             recordQuarryObservations(observedQuarryStones.get(0), observedQuarryStones.get(1)
-                    , observedQuarryStones.get(2), alliance);
+                    , observedQuarryStones.get(2));
         }
 
         //  TODO:  Improve this logic for inclusion of second vantage point

@@ -12,20 +12,18 @@ import static java.lang.String.format;
 @Autonomous
 public class Blue_Quarry_V2 extends eBotsAuton2019 {
 
-
-    /****************************************************************
-     //******    CONFIGURATION PARAMETERS
-     //***************************************************************/
-    private Alliance alliance = Alliance.BLUE;
-    private FieldSide fieldSide = FieldSide.QUARRY;
-    private Speed speedConfig = Speed.FAST;
-    private GyroSetting gyroConfig = GyroSetting.EVERY_LOOP;
-    private SoftStart softStartConfig = SoftStart.MEDIUM;
-    private Accuracy accuracyConfig = Accuracy.STANDARD;
-
-
     @Override
     public void runOpMode(){
+        // Set config variables
+        alliance = Alliance.BLUE;
+        fieldSide = FieldSide.QUARRY;
+        speedConfig = Speed.FAST;
+        gyroConfig = GyroSetting.EVERY_LOOP;
+        softStartConfig = SoftStart.MEDIUM;
+        accuracyConfig = Accuracy.STANDARD;
+        delayedStart = DelayedStart.NO;
+
+
         /** APPLY CONFIG     **************/
         setGyroConfiguration(gyroConfig);      //Set gyro parameters and initialize
         setSpeedConfiguration(speedConfig);    //Set speed and PID gain limits
@@ -104,19 +102,19 @@ public class Blue_Quarry_V2 extends eBotsAuton2019 {
         QuarryStone firstStone = QuarryStone.getQuarryStone(QuarryStone.StoneLocation.TWO);
         QuarryStone secondStone = QuarryStone.getQuarryStone(QuarryStone.StoneLocation.THREE);
         QuarryStone thirdStone = QuarryStone.getQuarryStone(QuarryStone.StoneLocation.FOUR);
-        recordQuarryObservations(firstStone, secondStone, thirdStone, alliance);
+        recordQuarryObservations(firstStone, secondStone, thirdStone);
         Log.d(logTag, "Quarry Observed " + overallTime.toString());
 
-        if(QuarryStone.getCountSkyStones() == 0 && QuarryStone.getCountObserved() <= 1) {
+        if(QuarryStone.getCurrentCountSkyStones() == 0 && QuarryStone.getCountObservedStones() <= 1) {
             //If didn't see more than one stone, move right a little and try again
-            Log.d(logTag, "SkyStone not identified, extending search..." + QuarryStone.getCountObserved() +
+            Log.d(logTag, "SkyStone not identified, extending search..." + QuarryStone.getCountObservedStones() +
                     " stone's observed");
             endPose = travelToNextPose(currentPose);
             firstStone = QuarryStone.getQuarryStone(QuarryStone.StoneLocation.ONE);
             secondStone = QuarryStone.getQuarryStone(QuarryStone.StoneLocation.TWO);
             thirdStone = QuarryStone.getQuarryStone(QuarryStone.StoneLocation.THREE);
 
-            recordQuarryObservations(firstStone, secondStone, thirdStone, alliance);
+            recordQuarryObservations(firstStone, secondStone, thirdStone);
 
         }
 

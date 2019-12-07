@@ -8,10 +8,15 @@ import java.util.ArrayList;
 
 @TeleOp
 @Disabled
-public class TeleOp_Competition_FO extends eBotsOpMode2019 {
+public class TeleOp_Competition_ArmFail_OBS12062019 extends eBotsOpMode2019 {
 
     /**
-     * FIELD ORIENTED VERSION OF COMPETITION_BETA_V2
+     * Change lifter behavior for going down to RUN_WITHOUT_ENCODERS
+     *
+     * --> Reversed the rollerGripper directions.  Right_trigger = Out, Right_bumper = IN
+     * --> AutoGrab is now left bumper and right bumper
+     * --> Dpad_Down sets lifter to grab height
+     * --> Make super-slow mo a little faster (0.65 reduction instead of 0.75)
      */
 
 
@@ -24,7 +29,6 @@ public class TeleOp_Competition_FO extends eBotsOpMode2019 {
         ArrayList<DcMotor> motorList= new ArrayList<>();
         if (motorList.size()>1) motorList.clear();  //Make sure there aren't any items in the list
         initializeDriveMotors(motorList, true);
-        initializeImu();
 
         //***************************************************************
         //Initialize the variables that are being used in the main loop
@@ -56,26 +60,22 @@ public class TeleOp_Competition_FO extends eBotsOpMode2019 {
         //Initialize Manipulator Arm variables
         //***************************************************************
         initializeManipMotors();
+
         //***************************************************************
         //Initialize Limit Switches
         //***************************************************************
-
         initializeLimitSwitches();
+
+
+
 
         //***************************************************************
         //Initialize the variables that are being used in the main loop
         //***************************************************************
         StopWatch rakeTimer = new StopWatch();
-        StopWatch rotate1ClawTimer = new StopWatch();
-        StopWatch rotate2ClawTimer = new StopWatch();
-        StopWatch clawTimer = new StopWatch();
         StopWatch lifterTimer = new StopWatch();
         Boolean rakeBusy = false;
-        Boolean rotate1ClawBusy = false;
-        Boolean rotate2ClawBusy = false;
-        Boolean clawBusy = false;
         Boolean lifterBusy = false;
-        Boolean holdLifterPosition = false;
 
 
         //***************************************************************
@@ -90,6 +90,8 @@ public class TeleOp_Competition_FO extends eBotsOpMode2019 {
         //  Wait for the game to start(driver presses PLAY)
         //***************************************************************
         waitForStart();
+        //  To protect for the case that the arm isn't extended, first raise lifter
+        raiseLifterToExtendArm();
         //  Then find the zero point
         findLifterZero();
 
@@ -102,9 +104,9 @@ public class TeleOp_Competition_FO extends eBotsOpMode2019 {
             //  [LEFT TRIGGER] --> Variable reduction in robot speed to allow for fine position adjustment
             //  [RIGHT BUMPER] --> Speed boost, maximized motor drive speed
 
-            driveX = -gamepad1.left_stick_x;        //Read left stick position for left/right motion
+            driveX = gamepad1.left_stick_x;        //Read left stick position for left/right motion
             driveY = -gamepad1.left_stick_y;       //Read left stick position for forward/reverse Motion
-            spin = -gamepad1.right_stick_x * spinScaleFactor; //This is used to determine how to spin the robot
+            spin = gamepad1.right_stick_x * spinScaleFactor; //This is used to determine how to spin the robot
             fineAdjust = gamepad1.left_trigger;     //Pull to slow motion
             speedBoostOn = gamepad1.right_bumper;   //Push to maximize motor drives
 
@@ -113,10 +115,8 @@ public class TeleOp_Competition_FO extends eBotsOpMode2019 {
 
             //Robot angle calculates the angle (in radians) and then subtracts pi/4 (45 degrees) from it
             //The 45 degree shift aligns the mecanum vectors for drive
-            robotAngle = Math.atan2(driveX, driveY);  //  NOTE:  x AND y are reversed in this formula from other OpModes
-
-            radHeading = getGyroReadingRad();
-            calculateFieldOrientedDriveVector(robotAngle, radHeading,r,spin,driveValues);
+            robotAngle = Math.atan2(driveY, driveX) - Math.PI / 4;
+            calculateDriveVector(r, robotAngle, spin, driveValues);     //Calculate motor drive speeds
 
             //Now allow for fine maneuvering by allowing a slow mode when pushing trigger
             //Trigger is an analog input between 0-1, so it allows for variable adjustment of speed
@@ -201,7 +201,6 @@ public class TeleOp_Competition_FO extends eBotsOpMode2019 {
             } else if(gamepad2.left_bumper && gamepad2.right_trigger > 0.3){
                 //----------Initiate AutoRelease----------------
                 autoReleaseStone(eBotsAuton2019.Speed.SLOW);
-
             }
             else rollerGripper.setPower(0.0);
 

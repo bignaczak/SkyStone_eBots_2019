@@ -12,21 +12,18 @@ import java.util.ArrayList;
 
 public class Blue_Foundation_V2 extends eBotsAuton2019 {
 
-    /****************************************************************
-    //******    CONFIGURATION PARAMETERS
-    //***************************************************************/
-    private Alliance alliance = Alliance.BLUE;
-    private FieldSide fieldSide = FieldSide.FOUNDATION_V2;
-    private Speed speedConfig = Speed.MEDIUM;
-    private GyroSetting gyroConfig = GyroSetting.EVERY_LOOP;
-    private SoftStart softStartConfig = SoftStart.MEDIUM;
-    private Accuracy accuracyConfig = Accuracy.STANDARD;
-
-    /****************************************************************/
-
-
     @Override
     public void runOpMode(){
+        // Set config variables
+        alliance = Alliance.BLUE;
+        fieldSide = FieldSide.FOUNDATION_V2;
+        speedConfig = Speed.MEDIUM;
+        gyroConfig = GyroSetting.EVERY_LOOP;
+        softStartConfig = SoftStart.MEDIUM;
+        accuracyConfig = Accuracy.STANDARD;
+        delayedStart = DelayedStart.NO;
+
+
         /** APPLY CONFIG     **************/
         setGyroConfiguration(gyroConfig);      //Set gyro parameters and initialize
         setSpeedConfiguration(speedConfig);    //Set speed and PID gain limits
