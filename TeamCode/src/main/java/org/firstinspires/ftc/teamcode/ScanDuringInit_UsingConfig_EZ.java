@@ -16,7 +16,8 @@ import static org.firstinspires.ftc.teamcode.eBotsMotionController.moveToTargetP
 
 @Autonomous
 @Disabled
-public class ScanDuringInit_UsingConfig extends eBotsAuton2019 {
+public class ScanDuringInit_UsingConfig_EZ extends eBotsAuton2019 {
+
 
 
     @Override
@@ -24,12 +25,10 @@ public class ScanDuringInit_UsingConfig extends eBotsAuton2019 {
         boolean debugOn = true;
         String logTag = "BTI_E3_UsingConfig";
 
-        //LinearOpMode opMode = (LinearOpMode) this;
-
         //***************************************************************
         // ******    CONFIGURATION PARAMETERS
         // ***************************************************************/
-        speedConfig = Speed.FAST;
+        speedConfig = Speed.SLOW;
         gyroConfig = GyroSetting.INFREQUENT;
         softStartConfig = SoftStart.MEDIUM;
         accuracyConfig = Accuracy.STANDARD;
@@ -59,6 +58,7 @@ public class ScanDuringInit_UsingConfig extends eBotsAuton2019 {
             initializeManipMotors();
             initializeLimitSwitches();          //limit switches
             initializeDistanceSensors();        //distance sensors
+
         }
 
         if (debugOn) Log.d(logTag, "Encoders initialized " + EncoderTracker.getEncoderTrackerCount() + " found");
@@ -126,7 +126,7 @@ public class ScanDuringInit_UsingConfig extends eBotsAuton2019 {
         }
 
         telemetry.clear();
-        while (opModeIsActive() && overallTime.getElapsedTimeMillis() < 5000){
+        while (overallTime.getElapsedTimeMillis() < 5000){
             telemetry.addLine("Execution Continued");
             telemetry.addData("elapsed millis", overallTime.getElapsedTimeMillis());
             telemetry.addData("SkyStones Found:", QuarryStone.getFoundSkyStoneCount());
@@ -191,8 +191,6 @@ public class ScanDuringInit_UsingConfig extends eBotsAuton2019 {
     private void executeQuarryRoutine(TrackingPose trackingPose){
         boolean debugOn = true;
         String logTag = "BTI_executeQuarry";
-        Pose targetPose;
-
         if (debugOn) Log.d(logTag, "Starting executeQuarryRoutine...");
 
         //***************************************************************
@@ -200,6 +198,10 @@ public class ScanDuringInit_UsingConfig extends eBotsAuton2019 {
         //***************************************************************
         //Extend Arm, find zero, and set lifter to stone grab height
         raiseLifterToExtendArm();
+        findLifterZero();
+        setLifterHeightToGrabStone();
+        if (debugOn) Log.d(logTag, "Ready to grab stone " + overallTime.toString());
+
 
         //  hopefully the skystone was identified during the init period
         //  If not, move to a second vantage point for analysis
@@ -228,12 +230,14 @@ public class ScanDuringInit_UsingConfig extends eBotsAuton2019 {
             }
         }
         moveBackToClearQuarry(trackingPose, overallTime);
-        //rotate to the foundation
-        targetPose = new Pose (trackingPose.getX(), trackingPose.getY(), 0.0);
-        trackingPose.setTargetPose(targetPose);
-        moveToTargetPose(trackingPose, speedConfig, gyroConfig, accuracyConfig, softStartConfig,imu, telemetry);
 
         travelUnderBridgeToFoundation(trackingPose, overallTime);
+
+        //  Once arrive at the foundation plate, start extending tape measure
+        StopWatch tapeExtendTime = new StopWatch();
+        long tapeExtendTimeOut = 6000L;
+        yoyo.setPower(YOYO_EXTEND);
+
         setLifterHeightToPlaceStone();  //raise lifter to place on foundation
 
         //**  Refine position to foundation
@@ -242,84 +246,30 @@ public class ScanDuringInit_UsingConfig extends eBotsAuton2019 {
         autoReleaseStone(Speed.FAST, overallTime);
         if (debugOn) Log.d(logTag, "Stone released "  + overallTime.toString());
 
-        //  Back away from Foundation Plate
-        targetPose = bridge.getFoundationSideStagingPose(Bridge.BridgeLane.INNER_LANE,20.0);
+        Pose targetPose = foundation.getSkyStoneParkingPose(alliance);
         trackingPose.setTargetPose(targetPose);
         moveToTargetPose(trackingPose, speedConfig, gyroConfig, accuracyConfig, softStartConfig,imu, telemetry);
-        if (debugOn) Log.d(logTag, "backed away from foundation plate "  + overallTime.toString());
 
-        //drop lifter
-        findLifterZero();
-
-        //Go get the other SkyStone
-        //  Can't use possessSkyStone for this because lifter is down and must spin before can grab
-
-        driveToSecondSkyStone(trackingPose);        //Need new method to prevent spinning
-        if (debugOn) Log.d(logTag, "....COMPLETED Drive to second Skystone " + overallTime.toString());
-        if (debugOn) Log.d(logTag, "endPose Position:" + trackingPose.toString());
-
-        setLifterHeightToGrabStone();
-
-        //  Now spin
-        trackingPose.getTargetPose().setHeading(skyStoneHeading);
-        //  Apply extra spin if skystone is against wall
-        if (extraSpinRequired) {
-            targetPose = trackingPose.getTargetPose();
-            double newAngle = (Math.abs(skyStoneHeading) + 15) * Math.signum(skyStoneHeading);
-            targetPose.setHeading(newAngle);
-        }
-        moveToTargetPose(trackingPose, speedConfig, gyroConfig, accuracyConfig, softStartConfig,imu, telemetry);
-
-        if (debugOn) Log.d(logTag, "Ready to grab stone " + overallTime.toString());
-
-        refinePosition(FieldObject.QUARRY_STONE, trackingPose, overallTime);
-        autoGrabBlockNoMovement(getDriveMotors());
-        //**  Move back a little to clear quarry
-        moveBackToClearQuarry(trackingPose, overallTime);
-
-        //rotate to the foundation
-        //targetPose = new Pose (trackingPose.getX(), trackingPose.getY(), 0.0);
-        //trackingPose.setTargetPose(targetPose);
-        //moveToTargetPose(trackingPose, speedConfig, gyroConfig, accuracyConfig, softStartConfig,imu, telemetry);
-
-        //Travel under bridge toward foundation
-        travelUnderBridgeToFoundation(trackingPose, overallTime);
-
-        //  Once arrive at the foundation plate, start extending tape measure
-        StopWatch tapeExtendTime = new StopWatch();
-        long tapeExtendTimeOut = 6000L;
-        yoyo.setPower(YOYO_EXTEND);
-
-
-        setLifterHeightToPlaceStone();  //raise lifter to place on foundation
-
-        //**  Refine position to foundation
-        if (debugOn) Log.d(logTag, "Refining position to foundation...");
-        refinePosition(FieldObject.FOUNDATION, trackingPose, overallTime);
-        if (debugOn) Log.d(logTag, "...COMPLETED Refining position to foundation " + overallTime.toString());
-
-
-        //  Dump stone
-        autoReleaseStone(Speed.FAST, overallTime);
-        if (debugOn) Log.d(logTag, "Second skyStone released "  + overallTime.toString());
-
-        //  Back away from Foundation Plate
-
-        //  Back away from Foundation Plate
-        targetPose = bridge.getFoundationSideStagingPose(Bridge.BridgeLane.INNER_LANE,20.0);
-        trackingPose.setTargetPose(targetPose);
-        moveToTargetPose(trackingPose, speedConfig, gyroConfig, accuracyConfig, softStartConfig,imu, telemetry);
-        if (debugOn) Log.d(logTag, "backed away from foundation plate "  + overallTime.toString());
-
-        //drop lifter
-        findLifterZero();
-
-        //  Wait for tape measure to stop
         while (opModeIsActive() && tapeExtendTime.getElapsedTimeMillis() < tapeExtendTimeOut){
             //Wait for the tape measure to extend
         }
         yoyo.setPower(YOYO_STOP);
 
+
+        /*
+        //  Back away from Foundation Plate
+        backAwayFromFoundation(trackingPose, overallTime);
+
+        //drop lifter
+        findLifterZero();
+
+        //  Now park under the bridge
+        parkUnderBridge(trackingPose, overallTime);
+
+        //Now lower rake to ensure is parked under bridge
+        //lowerRake();
+
+         */
     }
 
     protected TrackingPose surveilQuarry(TrackingPose trackingPose, StopWatch overallTime){
@@ -469,7 +419,7 @@ public class ScanDuringInit_UsingConfig extends eBotsAuton2019 {
         refinePosition(FieldObject.QUARRY_STONE, trackingPose, overallTime);
 
         if (debugOn) Log.d(logTag, "...COMPLETED refining position to stone " + overallTime.toString());
-        findLifterZeroWhileGrabbingStone();
+        autoGrabBlockNoMovement(getDriveMotors());
     }
 
     private void driveToSkyStone(TrackingPose trackingPose){
@@ -524,9 +474,8 @@ public class ScanDuringInit_UsingConfig extends eBotsAuton2019 {
         double signYCoord = (alliance == Alliance.BLUE) ? 1.0 : -1.0;
         double backtrackDist = 10.0 * signYCoord;
 
-        //First, make sure that the current position is updated
-        EncoderTracker.updatePoseUsingThreeEncoders(trackingPose, imu);
-        Pose targetPose = new Pose (trackingPose.getX(), trackingPose.getY() + backtrackDist, trackingPose.getHeading());
+        //Modified in V2 to execute the turn prior to driving to quarry
+        Pose targetPose = new Pose (trackingPose.getX(), trackingPose.getY() + backtrackDist, 0.0);
         trackingPose.setTargetPose(targetPose);
         moveToTargetPose(trackingPose, speedConfig, gyroConfig, accuracyConfig, softStartConfig,imu, telemetry);
         if (debugOn) Log.d(logTag, "...COMPLETED MOVE BACK " + overallTime.toString());
@@ -534,7 +483,6 @@ public class ScanDuringInit_UsingConfig extends eBotsAuton2019 {
 
     }
 
-    /*
     protected void travelUnderBridgeToFoundation(TrackingPose trackingPose, StopWatch overallTime){
         boolean debugOn = true;
         String logTag = "BTI_travelUnderBridge";
@@ -542,48 +490,9 @@ public class ScanDuringInit_UsingConfig extends eBotsAuton2019 {
         //Travel under bridge toward foundation
         //But need to lift arm first, so to to  PoseAfterPlaceSkystone
         if (debugOn) Log.d(logTag, "Getting tracking pose across bridge ");
-        setTargetPoseToDumpSkyStone(trackingPose);  //Set course
+        setTargetPoseAcrossBridge(trackingPose);  //Set course
         if (debugOn) Log.d(logTag, "~~~~~~~~~~~~~Driving across bridge ");
         moveToTargetPose(trackingPose, speedConfig, gyroConfig, accuracyConfig, softStartConfig,imu, telemetry);
-        if (debugOn) Log.d(logTag, "Travel across bridge completed, Location: " + trackingPose.toString());
-        if (debugOn) Log.d(logTag, "overallTime: "  + overallTime.toString());
-    }
-
-     */
-
-    protected void travelUnderBridgeToFoundation(TrackingPose trackingPose, StopWatch overallTime){
-        boolean debugOn = true;
-        String logTag = "BTI_travelUnderBridge";
-
-        //Travel under bridge toward foundation
-        //But need to lift arm first, so to to  PoseAfterPlaceSkystone
-        //  Move to staging area
-        if (debugOn) Log.d(logTag, "Getting tracking pose across bridge ");
-        Pose targetPose = bridge.getQuarrySideStagingPose(Bridge.BridgeLane.INNER_LANE);
-        trackingPose.setTargetPose(targetPose);  //Set course
-        if (debugOn) Log.d(logTag, "~~~~~~~~~~~~~Driving to staging area bridge ");
-        //Note, since the staging area is intended to be a pass-through point
-        //The accuracy has been opened up to LOOSE, hopefully resulting in less slow-down by robot
-        //TODO:  Verify that LOOSE Accuracy improves the slow-down situation
-        moveToTargetPose(trackingPose, speedConfig, gyroConfig, Accuracy.LOOSE, softStartConfig,imu, telemetry);
-
-
-        //Move under the bridge
-        if (debugOn) Log.d(logTag, "Getting tracking pose under bridge ");
-        targetPose = bridge.getFoundationSideStagingPose(Bridge.BridgeLane.INNER_LANE) ;
-        trackingPose.setTargetPose(targetPose);  //Set course
-        if (debugOn) Log.d(logTag, "~~~~~~~~~~~~~Driving to staging area bridge ");
-        moveToTargetPose(trackingPose, speedConfig, gyroConfig, Accuracy.LOOSE, softStartConfig,imu, telemetry);
-
-        setLifterHeightToPlaceStone();
-
-        //Move to foundation
-        if (debugOn) Log.d(logTag, "Getting tracking pose to foundation ");
-        setTargetPoseToDumpSkyStone(trackingPose);  //Set course
-        if (debugOn) Log.d(logTag, "~~~~~~~~~~~~~Driving to staging area bridge ");
-        moveToTargetPose(trackingPose, speedConfig, gyroConfig, accuracyConfig, softStartConfig,imu, telemetry);
-
-
         if (debugOn) Log.d(logTag, "Travel across bridge completed, Location: " + trackingPose.toString());
         if (debugOn) Log.d(logTag, "overallTime: "  + overallTime.toString());
     }
@@ -617,8 +526,7 @@ public class ScanDuringInit_UsingConfig extends eBotsAuton2019 {
 
         //Create the beginning and end poses for the move
 
-        //Pose bridgePark = Pose.getBridgeParkPose(trackingPose, alliance);
-        Pose bridgePark = bridge.getParkPose(Bridge.BridgeLane.INNER_LANE);
+        Pose bridgePark = Pose.getBridgeParkPose(trackingPose, alliance);
         Log.d(logTag, "Creating tracking pose to bridge park COMPLETED!");
         trackingPose.setTargetPose(bridgePark);
     }
@@ -661,17 +569,17 @@ public class ScanDuringInit_UsingConfig extends eBotsAuton2019 {
         Log.d(logTag, "Target pose replaced to " + skyStone.toString());
     }
 
-    protected void setTargetPoseToDumpSkyStone(TrackingPose trackingPose){
+
+    protected void setTargetPoseAcrossBridge(TrackingPose trackingPose){
         String logTag = "BTI_getTracking.Bridge.";
         Log.d(logTag, "Creating tracking pose to en route to Foundation under bridge...");
 
         //Create the beginning and end poses for the move
 
-        Pose acrossBridge = foundation.getSkyStoneDumpingPose(alliance);
+        Pose acrossBridge = foundation.getSkyStoneDumpingPose();
         Log.d(logTag, "Creating tracking pose across bridge COMPLETED!");
         trackingPose.setTargetPose(acrossBridge);
     }
-
 
     protected void setTargetPoseAfterPlaceSkystone(TrackingPose trackingPose){
         String logTag = "BTI_getTracking.Place2.";
@@ -686,13 +594,13 @@ public class ScanDuringInit_UsingConfig extends eBotsAuton2019 {
     }
 
 
+
+
+
     private void executeDelayedRoutine(TrackingPose trackingPose){
         String logTag = "BTI_executeDelayed";
         boolean debugOn = true;
-        long waitTimeout = 20000L;
-        long yoyoExtendTime = 5000L;
-        long yoyoTimeout = waitTimeout + yoyoExtendTime;
-
+        long timeout = 20000L;
 
         if (debugOn) Log.d(logTag, "~~~~~~~~~~~~~Executing Delay");
         if (debugOn) Log.d(logTag, "Overall Time: " + overallTime.toString());
@@ -701,39 +609,27 @@ public class ScanDuringInit_UsingConfig extends eBotsAuton2019 {
         //  Wait for 20 seconds
         //***************************************************************
         telemetry.clear();
-        while (opModeIsActive() && overallTime.getElapsedTimeMillis() < waitTimeout){
+        while (overallTime.getElapsedTimeMillis() < timeout){
             telemetry.addData("Delaying, elapsed time", overallTime.toString());
             telemetry.update();
         }
 
         //***************************************************************
-        //  EXTEND ARM AND START TAPE MOVING
+        //  EXTEND ARM
         //***************************************************************
         if (debugOn) Log.d(logTag, "Extending arm");
-
-        yoyo.setPower(YOYO_EXTEND);
         //Extend Arm, find zero, and set lifter to stone grab height
         raiseLifterToExtendArm();
         findLifterZero();
         if (debugOn) Log.d(logTag, "Arm extend complete " + overallTime.toString());
 
-
-        //***************************************************************
-        //  WAIT FOR THE TAPE MEASURE TO EXTEND
-        //***************************************************************
-        while(opModeIsActive() && overallTime.getElapsedTimeMillis() < yoyoTimeout){
-            //Wait for the tape measure to extend
-        }
-        yoyo.setPower(YOYO_STOP);
-
         //***************************************************************
         //  MAKE ONLY MOVE
         //***************************************************************
-        /*
+
         if (debugOn) Log.d(logTag, "Driving under Bridge");
         moveToTargetPose(trackingPose, speedConfig, gyroConfig, accuracyConfig, softStartConfig,imu, telemetry);
         if (debugOn) Log.d(logTag, "Drive complete, Overall Time: " + overallTime.toString());
-         */
     }
 
     @Override
@@ -744,7 +640,7 @@ public class ScanDuringInit_UsingConfig extends eBotsAuton2019 {
         double maxRangeBlock = fieldObject.getMaxDistance();
         boolean inRange = (currentDistance > minRangeBlock && currentDistance < maxRangeBlock) ? true : false;
         StopWatch timer = new StopWatch();
-        long timeout = 2000L;
+        long timeout = 1500L;
         boolean isTimedOut = false;
 
         boolean debugOn = true;
@@ -766,7 +662,7 @@ public class ScanDuringInit_UsingConfig extends eBotsAuton2019 {
 
         }
         String resultString = (isTimedOut) ? "FAILURE - Timed out" : "SUCCESS";
-        stopMotors();
+
         if (debugOn) Log.d(logTag, "COMPLETED Refining position to " + fieldObject.name() +
                 " Result: " + resultString);
         if (debugOn) Log.d(logTag, "Overall Time: " + overallTime.toString());
@@ -825,7 +721,6 @@ public class ScanDuringInit_UsingConfig extends eBotsAuton2019 {
                 for(QuarryStone stone: QuarryStone.getSkyStones()){
                     telemetry.addData("SkyStone Position", stone.getStoneLocation().name());
                 }
-                telemetry.addLine("Ready...");
                 telemetry.addLine("Alliance: " + alliance.name());
                 telemetry.addLine("Field Side: " + fieldSide.name());
                 telemetry.addLine("Delayed Start: " + delayedStart.name());

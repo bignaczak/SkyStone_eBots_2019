@@ -3,11 +3,13 @@ package org.firstinspires.ftc.teamcode;
 import android.util.Log;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.hardware.DcMotor;
 
 import java.util.ArrayList;
 
 @Autonomous
+@Disabled
 
 
 public class Blue_Foundation_V2 extends eBotsAuton2019 {
@@ -16,8 +18,8 @@ public class Blue_Foundation_V2 extends eBotsAuton2019 {
     public void runOpMode(){
         // Set config variables
         alliance = Alliance.BLUE;
-        fieldSide = FieldSide.FOUNDATION_V2;
-        speedConfig = Speed.MEDIUM;
+        fieldSide = FieldSide.FOUNDATION;
+        speedConfig = Speed.SLOW;
         gyroConfig = GyroSetting.EVERY_LOOP;
         softStartConfig = SoftStart.MEDIUM;
         accuracyConfig = Accuracy.STANDARD;
@@ -29,6 +31,7 @@ public class Blue_Foundation_V2 extends eBotsAuton2019 {
         setSpeedConfiguration(speedConfig);    //Set speed and PID gain limits
         setSoftStartConfig(softStartConfig);    //Set the soft start settings
         setAccuracyLimits(accuracyConfig);      //Set the accuracy limits
+        setAllianceObjects();           //Create objects for Quarry Stones and Foundation
 
         ArrayList<DcMotor> motorList = new ArrayList<>();   //List of motors
 

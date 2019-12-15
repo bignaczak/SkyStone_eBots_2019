@@ -6,11 +6,8 @@ import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
-import org.firstinspires.ftc.robotcore.external.tfod.Recognition;
 
 import java.util.ArrayList;
-import java.util.List;
-import java.util.ListIterator;
 
 import static org.firstinspires.ftc.teamcode.eBotsMotionController.moveToTargetPose;
 
@@ -47,7 +44,7 @@ public class E3_ASYNC_TEST extends eBotsAuton2019 {
         setSpeedConfiguration(speedConfig);    //Set speed and PID gain limits
         setSoftStartConfig(softStartConfig);    //Set the soft start settings
         setAccuracyLimits(accuracyConfig);      //Set the accuracy limits
-        setAllianceObjects(alliance);           //Create objects for Quarry Stones and Foundation
+        setAllianceObjects();           //Create objects for Quarry Stones and Foundation
 
 
         Log.d(logTag, "Starting OpMode...");

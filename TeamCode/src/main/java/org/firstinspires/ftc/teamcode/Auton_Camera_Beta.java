@@ -32,7 +32,7 @@ public class Auton_Camera_Beta extends eBotsAuton2019 {
         setSpeedConfiguration(speedConfig);    //Set speed and PID gain limits
         setSoftStartConfig(softStartConfig);    //Set the soft start settings
         setAccuracyLimits(accuracyConfig);      //Set the accuracy limits
-        setAllianceObjects(alliance);           //Create objects for Quarry Stones and Foundation
+        setAllianceObjects();           //Create objects for Quarry Stones and Foundation
         simulateMotors = false;
         String logTag = "BTI_AutonCameraBeta";
 

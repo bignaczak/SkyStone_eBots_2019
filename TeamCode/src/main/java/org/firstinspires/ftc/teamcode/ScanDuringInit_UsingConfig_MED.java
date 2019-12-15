@@ -16,10 +16,11 @@ import static org.firstinspires.ftc.teamcode.eBotsMotionController.moveToTargetP
 
 @Autonomous
 @Disabled
-public class ScanDuringInit_UsingConfig extends eBotsAuton2019 {
+public class ScanDuringInit_UsingConfig_MED extends eBotsAuton2019 {
 
 
     @Override
+
     public void runOpMode(){
         boolean debugOn = true;
         String logTag = "BTI_E3_UsingConfig";
@@ -29,7 +30,7 @@ public class ScanDuringInit_UsingConfig extends eBotsAuton2019 {
         //***************************************************************
         // ******    CONFIGURATION PARAMETERS
         // ***************************************************************/
-        speedConfig = Speed.FAST;
+        speedConfig = Speed.MEDIUM;
         gyroConfig = GyroSetting.INFREQUENT;
         softStartConfig = SoftStart.MEDIUM;
         accuracyConfig = Accuracy.STANDARD;

@@ -59,6 +59,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
     //Manipulation Motors
     public DcMotor latchMotor;
     protected DcMotor lifter;
+    protected DcMotor rake3;
     protected Servo foundationRake;
     protected Servo rotate1ClawServo;
     protected Servo rotate2ClawServo;
@@ -123,6 +124,20 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
     protected final double RAKE2_UP = -0.6;
     protected final double RAKE2_STOP = 0.0;
 
+    protected final double RAKE3_MOVE_DOWN = -0.3;
+    protected final double RAKE3_MOVE_UP = 0.3;
+    protected final double RAKE3_POWER_LEVEL = 0.3;
+    protected final double RAKE3_STOP = 0.0;
+    protected final int RAKE3_DOWN_POSITION = -140;
+    protected final int RAKE3_UP_POSITION = 0;
+    protected final int RAKE3_ZERO_POSITION = -70;
+
+
+    protected final double YOYO_EXTEND = -0.6;
+    protected final double YOYO_RETRACT = 0.6;
+    protected final double YOYO_STOP = 0.0;
+
+
 
 
     protected final Double ROTATE2_CLAW_FORWARD = 0.798;
@@ -130,7 +145,7 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
 
     protected final int GRAB_HEIGHT_CLICKS = -750;
     protected final int PLACE_SKYSTONE_HEIGHT = -750;
-    protected final int STONE_HEIGHT_CLICKS = -750;
+    protected final int STONE_HEIGHT_CLICKS = -650;
     protected final int LIFTER_UPPER_LIMIT = -4184;
     protected final int CLICKS_TO_RELEASE_ARM = -600;
 
@@ -154,6 +169,8 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
     protected double lifterUserInput = 0.0;
     protected double lifterPowerLevel = 0.8;
     protected double rollerGripperPowerLevel = 0.8;
+    protected final double rollerGripperInjest = -rollerGripperPowerLevel;
+    protected final double rollerGripperRelease = rollerGripperPowerLevel;
 
     protected Boolean clawOpen = true;
 
@@ -384,7 +401,6 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
             m.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
             m.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         }
-
     }
 
     public void initializeManipMotors(){
@@ -402,7 +418,11 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         rake2 = hardwareMap.get(CRServo.class, "rake2");
         rollerGripper = hardwareMap.get(DcMotor.class, "rollerGripper");
         markerDropper = hardwareMap.get(Servo.class, "markerDropper");
-
+        rake3 = hardwareMap.get(DcMotor.class, "rake3");
+        rake3.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        rake3.setTargetPosition(0);
+        rake3.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        rake3.setPower(0.0);
         //foundationRakePosition = foundationRake.getPosition();
         markerDropper.setPosition(RETAIN_MARKER);
     }
@@ -462,21 +482,37 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
          */
         StopWatch timer = new StopWatch();
 
+        /*  **  THIS IS NO LONGER NEEDED, NO MECHANICAL INTERFERENCE    ***
         //Before find zero, move rake out of the way
-        Long timeout = 250L;
-        while (opModeIsActive() && timer.getElapsedTimeMillis() < timeout){
-            rake2.setPower(RAKE2_DOWN);
-        }
-        rake2.setPower(RAKE2_STOP);
+        long rakeTimeout = 750L;
+        //rake2.setPower(RAKE2_DOWN);
+        rake3.setPower(RAKE3_STOP);
+        rake3.setTargetPosition(RAKE3_ZERO_POSITION);
+        rake3.setPower(RAKE3_POWER_LEVEL);
 
-        timeout = 2500L;
+        while (opModeIsActive() && timer.getElapsedTimeMillis() < rakeTimeout){
+        //Stall for rake to lower
+        }
+
+         */
+
+
+        long timeout = 2500L;
         lifter.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        lifter.setPower(0.25);   //  was 0.6
+        lifter.setPower(0.35);   //  was 0.6
         timer.startTimer();
         while(opModeIsActive() && !lifterAtBottom.getState()
                 && timer.getElapsedTimeMillis()<timeout){
+
+            if(!lifterAtBottom.getState() && timer.getElapsedTimeMillis() > ((2/3)*timeout)){
+                //If getting near the end of the grab start moving back
+                translateRobot(TranslateDirection.BACKWARD, 0.15);
+            }
+
             processDriverControls();
         }
+        //rake2.setPower(RAKE2_STOP);
+        stopMotors();
         lifter.setPower(0.0);
         lifter.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         lifterPosition = lifter.getCurrentPosition();
@@ -696,10 +732,8 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         rollerGripperSpeed = 0.35;  //slow release speed
         liftPowerLevelRelease = 0.25;
     }
-    int lifterAutoReleaseIncrement = (int) (STONE_HEIGHT_CLICKS * 1.15);
+    int lifterAutoReleaseIncrement = (int) (STONE_HEIGHT_CLICKS);
 
-    ArrayList<DcMotor> motorList = getDriveMotors();
-    //  0) Stop all motor
     stopMotors();
 
     //  1) Lift Arm a little more than a block to make sure you clear when moving away
@@ -733,7 +767,10 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
 
 
 }
-
+    //TODO:  This needs to be combined with the field oriented version, just add argument on how
+    // to calculate the drive vectors.
+    // Consider using the activateDriveMotors calculation for motion also
+    // Also, this method should be broken up further to make it more readable
     protected void processDriverControls(){
         //This first group is for basic navigation
         double driveX;      //Left or right movement
@@ -813,20 +850,169 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
             m.setPower(driveValues[i]);
             i++;
         }
+        /*
         //This is a little strange, allows for both controllers to manipulate the rake
         //  Precedence is given to the driver
         if(gamepad1.a){
-            rake2.setPower(RAKE2_DOWN);
+            rake3.setPower(RAKE3_MOVE_DOWN);
         } else if (gamepad1.y){
-            rake2.setPower(RAKE2_UP);
+            rake3.setPower(RAKE3_MOVE_UP);
         } else if (gamepad2.a){
-            rake2.setPower(RAKE2_DOWN);
+            rake3.setPower(RAKE3_MOVE_DOWN);
         } else if (gamepad2.y){
-            rake2.setPower(RAKE2_UP);
-        } else rake2.setPower(RAKE2_STOP);
+            rake3.setPower(RAKE3_MOVE_UP);
+        } else rake3.setPower(RAKE3_STOP);
+
+         */
+
+        if (gamepad1.left_bumper && gamepad2.right_bumper && gamepad2.a) {
+            rake3.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            rake3.setTargetPosition(0);
+            rake3.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+            rake3.setPower(RAKE3_POWER_LEVEL);
+
+        }else if(gamepad1.left_bumper && gamepad1.a){
+            rake3.setPower(RAKE3_STOP);
+            rake3.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            rake3.setPower(RAKE3_MOVE_UP);
+            rake3.setTargetPosition(rake3.getCurrentPosition());
+            rake3.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+            rake3.setPower(RAKE3_POWER_LEVEL);
+        }else if (gamepad1.a){
+            rake3.setTargetPosition(RAKE3_DOWN_POSITION);
+            rake3.setPower(RAKE3_POWER_LEVEL);
+        } else if (gamepad1.y){
+            rake3.setTargetPosition(RAKE3_UP_POSITION);
+            rake3.setPower(RAKE3_POWER_LEVEL);
+        } else if (gamepad2.a){
+            rake3.setTargetPosition(RAKE3_DOWN_POSITION);
+            rake3.setPower(RAKE3_POWER_LEVEL);
+        } else if (gamepad2.y){
+            rake3.setTargetPosition(RAKE3_UP_POSITION);
+            rake3.setPower(RAKE3_POWER_LEVEL);
+        }
+
 
     }
+    //TODO:  Combine with the non-field oriented version
+    protected void processDriverControlsFieldOriented(){
+        //***************************************************************
+        //Initialize the variables that are being used in the main loop
+        //***************************************************************
 
+        //This first group is for basic navigation
+        double driveX;      //Left or right movement
+        double driveY;      //Forward or back movement
+        double spin;        //Rotation
+
+        //These are calculated based on the stick inputs
+        double r;       //length of radius for driveX and driveY
+        double robotAngle;      //adjust of angle to account for mecanum drive
+
+        //This are used to refine the input for driver control
+        double fineAdjust;                          //Used for super-slow mode
+        final double fineAdjustThreshold = 0.3;    //Avoid trivial amounts of speed reduction with threshold value
+        final double fineAdjustMaxReduction = 0.65; //Don't allow drive to be fully negated
+        boolean fineAdjustOn = false;               //Flag if fine adjust is activated
+        boolean speedBoostOn = false;               //Maximize motor drive speeds if pressed
+        final double motorThreshold=0.10;
+        double spinScaleFactor = 0.4;
+
+        //These values get calculated by calculateDriveVector function
+        double[] driveValues = new double[4];  //Array of values for the motor power levels
+        double maxValue;                        //Identify ax value in driveValues array
+        //GAMEPAD1 INPUTS
+        //----------------------------------------
+        //Get the drive inputs from the controller
+        //  [LEFT STICK]   --> Direction and Speed
+        //  [RIGHT STICK]  --> X Direction dictates spin rate to rotate about robot center
+        //  [LEFT TRIGGER] --> Variable reduction in robot speed to allow for fine position adjustment
+        //  [RIGHT BUMPER] --> Speed boost, maximized motor drive speed
+
+        driveX = -gamepad1.left_stick_x;        //Read left stick position for left/right motion
+        driveY = -gamepad1.left_stick_y;       //Read left stick position for forward/reverse Motion
+        spin = -gamepad1.right_stick_x * spinScaleFactor; //This is used to determine how to spin the robot
+        fineAdjust = gamepad1.left_trigger;     //Pull to slow motion
+        speedBoostOn = gamepad1.right_bumper;   //Push to maximize motor drives
+
+        //r gives the left stick's offset from 0 position by calculating hypotenuse of x and y offset
+        r = Math.hypot(driveX, driveY);
+
+        //Robot angle calculates the angle (in radians) the robot should be translate
+        //it is important that the zero heading point be captured correctly
+        robotAngle = Math.atan2(driveX, driveY);  //  NOTE:  x AND y are reversed in this formula from other OpModes
+
+        radHeading = getGyroReadingRad();
+        calculateFieldOrientedDriveVector(robotAngle, radHeading,r,spin,driveValues);
+
+        //Now allow for fine maneuvering by allowing a slow mode when pushing trigger
+        //Trigger is an analog input between 0-1, so it allows for variable adjustment of speed
+        //Now scale the drive values based on the level of the trigger
+        //We don't want to trigger to allow the joystick to be completely negated
+        //And we don't want trivial amounts of speed reduction
+        //Initialized variable above Set threshold value to ~0.2 (fineAdjustThreshold)
+        // and only allow 80% reduction of speed (fineAdjustMaxReduction)
+        if (fineAdjust >= fineAdjustThreshold) {
+            fineAdjustOn = true;
+            fineAdjust *= fineAdjustMaxReduction;
+        } else {
+            fineAdjustOn = false;
+            fineAdjust = 0;
+        }
+        fineAdjust = 1 - fineAdjust;
+
+        if (fineAdjustOn) scaleDrive(fineAdjust, driveValues);    //Apply Fine Adjust
+
+
+        //Now maximize speed by applying a speed boost
+        //The drive calculation sometimes doesn't set the peak drive to 1, this corrects that
+        if (!fineAdjustOn & speedBoostOn) {      //Fine Adjust mode takes precedent over speed boost
+            maxValue = findMaxAbsValue(driveValues);  //See what the max drive value is set to
+            if (maxValue < 1 & maxValue > 0)
+                scaleDrive(1 / maxValue, driveValues);  //If max value isn't 1, Scale the values up so max is 1
+        }
+
+        //Now actually assign the calculated drive values to the motors in motorList
+        int i = 0;
+        for (DcMotor m : driveMotors) {
+            m.setPower(driveValues[i]);
+            i++;
+        }
+
+        //This is a little strange, allows for both controllers to manipulate the rake
+        //  Precedence is given to the driver
+        /*
+        if(gamepad1.a){
+            rake3.setPower(RAKE3_MOVE_DOWN);
+        } else if (gamepad1.y){
+            rake3.setPower(RAKE3_MOVE_UP);
+        } else if (gamepad2.a){
+            rake3.setPower(RAKE3_MOVE_DOWN);
+        } else if (gamepad2.y){
+            rake3.setPower(RAKE3_MOVE_UP);
+        } else rake3.setPower(RAKE3_STOP);
+
+         */
+
+        if(gamepad1.a){
+            rake3.setTargetPosition(RAKE3_DOWN_POSITION);
+            rake3.setPower(RAKE3_POWER_LEVEL);
+        } else if (gamepad1.y){
+            rake3.setTargetPosition(RAKE3_UP_POSITION);
+            rake3.setPower(RAKE3_POWER_LEVEL);
+        } else if (gamepad2.a){
+            rake3.setTargetPosition(RAKE3_DOWN_POSITION);
+            rake3.setPower(RAKE3_POWER_LEVEL);
+        } else if (gamepad2.y){
+            rake3.setTargetPosition(RAKE3_UP_POSITION);
+            rake3.setPower(RAKE3_POWER_LEVEL);
+        }
+
+
+        if (gamepad1.left_bumper && gamepad1.start){
+            initializeImu();
+        }
+    }
     protected void processManualManipControls(){
         //GAMEPAD2 INPUTS
         //----------------------------------------
@@ -855,10 +1041,10 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         //----------rollerGripper INPUTS----------------
         if (gamepad2.right_bumper && !gamepad2.left_bumper) {
             //----------Ingest----------------
-            rollerGripper.setPower(-rollerGripperPowerLevel);
+            rollerGripper.setPower(rollerGripperInjest);
         } else if (gamepad2.right_trigger > 0.3 && !gamepad2.left_bumper) {
             //----------release----------------
-            rollerGripper.setPower(rollerGripperPowerLevel);
+            rollerGripper.setPower(rollerGripperRelease);
         } else rollerGripper.setPower(0.0);
 
 
@@ -900,10 +1086,10 @@ public abstract class eBotsOpMode2019 extends LinearOpMode {
         }
         //----------Extend the tape measure for parking----------------
         if (gamepad2.x){
-            yoyo.setPower(-0.6);
+            yoyo.setPower(YOYO_EXTEND);
         } else if (gamepad2.b){
-            yoyo.setPower(0.6);
-        } else yoyo.setPower(0.0);
+            yoyo.setPower(YOYO_RETRACT);
+        } else yoyo.setPower(YOYO_STOP);
 
         //----------Drop the marker----------------
         if (gamepad2.right_stick_y > 0.3) {

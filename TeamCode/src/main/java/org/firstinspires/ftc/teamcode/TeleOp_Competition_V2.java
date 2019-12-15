@@ -1,13 +1,12 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 
 import java.util.ArrayList;
 
 @TeleOp
-public class TeleOp_Competition extends eBotsOpMode2019 {
+public class TeleOp_Competition_V2 extends eBotsOpMode2019 {
 
     /**
      * Change lifter behavior for going down to RUN_WITHOUT_ENCODERS
@@ -36,7 +35,6 @@ public class TeleOp_Competition extends eBotsOpMode2019 {
         //Initialize Manipulator Arm variables
         //***************************************************************
         initializeManipMotors();
-        rake3.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
 
         //***************************************************************
@@ -75,7 +73,10 @@ public class TeleOp_Competition extends eBotsOpMode2019 {
     }
 
     private void writeTelemetry(){
-        //telemetry.addData("Rake3 Position", rake3.getCurrentPosition());
+        telemetry.addData("Rake3 Mode", rake3.getMode().name());
+        telemetry.addData("Rake3 Power Level", rake3.getPower());
+        telemetry.addData("Rake3 Target", rake3.getTargetPosition());
+        telemetry.addData("Rake3 Position", rake3.getCurrentPosition());
         telemetry.addData("Lifter Target", lifter.getTargetPosition());
         telemetry.addData("Lifter actual position", lifter.getCurrentPosition());
         telemetry.addData("Lifter error", Math.abs(lifter.getTargetPosition() - lifter.getCurrentPosition()));

@@ -31,8 +31,8 @@ public class Pose {
         , BLUE_FOUNDATION (39.0, 62.0, 90.0)
         , RED_QUARRY (-12.0, -62.0, 90.0)
         , BLUE_QUARRY (-12.0, 62.0, -90.0)
-        , FOUNDATION(38.0, 60.0, 90.0)
-        , QUARRY (-38.0, 60.0, -90.0);
+        , FOUNDATION(38.0, 61.0, 90.0)
+        , QUARRY (-38.0, 61.0, -90.0);
 
         private double xStart;
         private double yStart;

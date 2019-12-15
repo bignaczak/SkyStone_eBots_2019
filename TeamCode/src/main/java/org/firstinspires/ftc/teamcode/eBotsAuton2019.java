@@ -60,6 +60,7 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
 
     protected ArrayList<Pose> wayPoses;
     protected Foundation foundation;
+    protected Bridge bridge;
 
     /****************************************************************
      //******    CONFIGURATION PARAMETERS
@@ -73,6 +74,7 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
     protected Alliance alliance;
     protected FieldSide fieldSide;
     protected DelayedStart delayedStart;
+    protected Foundation.Orientation foundationOrientation;
     protected StopWatch overallTime;
 
     /****************************************************************/
@@ -106,9 +108,9 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
     }
 
     public enum Speed{
-        SLOW (0.35, 0.3, 0.35, 0.0, 0.0, 0.1, 0.0, 0.0),
-        MEDIUM (0.60,0.4,  0.17, 0.0, 0.0, 0.1, 0.0, 0.0),
-        FAST (0.8, 0.6, 0.10, 0.0, 0.0,0.07, 0.0,0.0);
+        SLOW (0.40, 0.3, 0.35, 0.0, 0.0, 0.05, 0.0, 0.0),
+        MEDIUM (0.60,0.4,  0.10, 0.0, 0.0, 0.03, 0.0, 0.0),
+        FAST (1.0, 0.6, 0.10, 0.0, 0.0,0.03, 0.0,0.0);
 
         /**  ENUM VARIABLES     **************/
         private double maxSpeed;
@@ -190,9 +192,9 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
     }
 
     public enum Accuracy{
-        LOOSE (5.0, 0.5, 0.40, 0.10),
-        STANDARD (2.5, 0.25, 0.20, 0.10),
-        TIGHT (1.0, 0.15, 0.10, 0.10);
+        LOOSE (10.0, 3.0, 0.40, 0.10),
+        STANDARD (4.0, 1.5, 0.20, 0.10),
+        TIGHT (1.0, 0.50, 0.10, 0.10);
 
         /**  ENUM VARIABLES     **************/
 
@@ -234,7 +236,7 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
     }
 
     public enum FieldObject{
-        QUARRY_STONE (6.25, 7.25),
+        QUARRY_STONE (6.5, 7.5),
         FOUNDATION (4.0, 5.0);
 
         private double minDistance;
@@ -295,6 +297,17 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
             if (configValue.equalsIgnoreCase(d.name())){
                 delayedStart = d;
                 Log.d(logTag, "Delayed Start Assigned: " + delayedStart.name());
+            }
+        }
+
+        if (listIterator.hasNext()){
+            configValue = listIterator.next();
+
+            for(Foundation.Orientation f: Foundation.Orientation.values()){
+                if(configValue.equalsIgnoreCase(f.name())){
+                    foundationOrientation = f;
+                    Log.d(logTag, "Foundation Orientation Assigned: " + foundationOrientation.name());
+                }
             }
         }
     }
@@ -403,17 +416,18 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
             //Move to foundation plate and lower rake
             wayPoses.add(new Pose(50.0, 34.0, 90.0, Pose.PostMoveActivity.LOWER_RAKE));
             //drag foundation over to wall
-            wayPoses.add(new Pose(50.0, 60.0, 90.0, Pose.PostMoveActivity.RAISE_RAKE));
+            wayPoses.add(new Pose(50.0, 61.0, 90.0, Pose.PostMoveActivity.RAISE_RAKE));
             //move sideways towards center of field
-            wayPoses.add(new Pose(18.0, 60.0, 90.0));
+            wayPoses.add(new Pose(18.0, 61.0, 90.0));
             //move backwards towards center and raise arm, then lower for driving under bridge
-            wayPoses.add(new Pose(18.0, 55.0, 0.0, Pose.PostMoveActivity.EXTEND_ARM_THEN_LOWER_LIFTER));
+            wayPoses.add(new Pose(18.0, 58.0, 0.0, Pose.PostMoveActivity.EXTEND_ARM_THEN_LOWER_LIFTER));
+            //wayPoses.add(new Pose(18.0, 55.0, 0.0, Pose.PostMoveActivity.EXTEND_ARM_THEN_LOWER_LIFTER));
             //Push foundation against back wall
-            wayPoses.add(new Pose(28.5, 55.0, 0.0));
+            //wayPoses.add(new Pose(28.5, 55.0, 0.0));
             //move back to wall
-            wayPoses.add(new Pose(25.0, 60.0, 0.0));
+            //wayPoses.add(new Pose(25.0, 60.0, 0.0));
             //Stay in same location but spin to be skinny under bridge
-            wayPoses.add(new Pose(0.0, 60.0, 0.0));
+            //wayPoses.add(new Pose(0.0, 60.0, 0.0));
 
         } else if (fieldSide == FieldSide.QUARRY) {
             // Start right next to depot
@@ -494,8 +508,14 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
         integratorUnwindLimit = accuracy.getIntegratorUnwindLimit();
     }
 
-    protected void setAllianceObjects(Alliance alliance){
+    protected void setAllianceObjects(){
         foundation = new Foundation(alliance);
+        if (foundationOrientation != null) {
+            if (foundationOrientation == Foundation.Orientation.ROTATED) {
+                foundation.rotateFoundation(foundationOrientation, alliance);
+            }
+        }
+        bridge = new Bridge(alliance);
         //***************************************************************
         //  Build the QuarryStone objects representing the 6 positions
         //***************************************************************
@@ -872,20 +892,27 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
 
         StopWatch stopWatch = new StopWatch();
         stopWatch.startTimer();
-        rake2.setPower(RAKE2_DOWN);
-        while (stopWatch.getElapsedTimeMillis() < 1000) {
+        //rake2.setPower(RAKE2_DOWN);
+        //rake3.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        //rake3.setPower(RAKE3_MOVE_DOWN);
+        rake3.setTargetPosition(RAKE3_DOWN_POSITION);
+        rake3.setPower(RAKE3_POWER_LEVEL);
+        while (opModeIsActive() && stopWatch.getElapsedTimeMillis() < 1000) {
             //lowering rake
         }
     }
 
     protected void raiseRake(){
-        rake2.setPower(RAKE2_UP);
+        //rake2.setPower(RAKE2_UP);
+        rake3.setTargetPosition(RAKE3_UP_POSITION);
+        rake3.setPower(RAKE3_POWER_LEVEL);
+        //rake3.setPower(RAKE3_MOVE_UP);
         StopWatch stopWatch = new StopWatch();
         stopWatch.startTimer();
-        while(stopWatch.getElapsedTimeMillis()<500){
+        while(opModeIsActive() && stopWatch.getElapsedTimeMillis()<500){
             //RAISING rake
         }
-        rake2.setPower(RAKE2_STOP);
+        //rake3.setPower(RAKE3_STOP);
     }
 
 
@@ -1370,6 +1397,7 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
             isTimedOut = (timer.getElapsedTimeMillis() >= timeout) ? true : false;
 
         }
+        stopMotors();
         String resultString = (isTimedOut) ? "FAILURE - Timed out" : "SUCCESS";
         //  This updates encoders without calculating field position, maybe not correct
         //  Perhaps should use getNewPose instead
@@ -1492,5 +1520,14 @@ public abstract class eBotsAuton2019 extends eBotsOpMode2019 {
         autoGrabStone(motorList);
 
     }
+
+    protected void findLifterZeroWhileGrabbingStone(){
+        rollerGripper.setPower(rollerGripperInjest);
+        findLifterZero();
+        rollerGripper.setPower(0.0);
+    }
+
+
+
 
 }

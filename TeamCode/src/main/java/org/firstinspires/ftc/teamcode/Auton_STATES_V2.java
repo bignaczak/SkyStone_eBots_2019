@@ -3,7 +3,7 @@ package org.firstinspires.ftc.teamcode;
 import android.util.Log;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
-import com.qualcomm.robotcore.eventloop.opmode.Disabled;
+import com.qualcomm.robotcore.hardware.DcMotor;
 
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.tfod.Recognition;
@@ -12,11 +12,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.ListIterator;
 
+import static org.firstinspires.ftc.teamcode.eBotsMotionController.defendPosition;
 import static org.firstinspires.ftc.teamcode.eBotsMotionController.moveToTargetPose;
 
 @Autonomous
-@Disabled
-public class ScanDuringInit_UsingConfig extends eBotsAuton2019 {
+public class Auton_STATES_V2 extends eBotsAuton2019 {
 
 
     @Override
@@ -29,7 +29,7 @@ public class ScanDuringInit_UsingConfig extends eBotsAuton2019 {
         //***************************************************************
         // ******    CONFIGURATION PARAMETERS
         // ***************************************************************/
-        speedConfig = Speed.FAST;
+        speedConfig = Speed.SLOW;
         gyroConfig = GyroSetting.INFREQUENT;
         softStartConfig = SoftStart.MEDIUM;
         accuracyConfig = Accuracy.STANDARD;
@@ -57,6 +57,8 @@ public class ScanDuringInit_UsingConfig extends eBotsAuton2019 {
             initializeDriveMotors(true);
             initializeEncoderTrackers(getDriveMotors());
             initializeManipMotors();
+            rake3.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            rake3.setMode(DcMotor.RunMode.RUN_TO_POSITION);
             initializeLimitSwitches();          //limit switches
             initializeDistanceSensors();        //distance sensors
         }
@@ -137,7 +139,7 @@ public class ScanDuringInit_UsingConfig extends eBotsAuton2019 {
     private void executeFoundationRoutine(TrackingPose trackingPose){
         String logTag = "BTI_executeFound";
         boolean debugOn = true;
-
+        StopWatch overallTimer = new StopWatch();
         //Travel first leg
         Integer travelLegCount = 1;   //Positions 0 and 1 already consumed in first TrackingPose
         ListIterator<Pose> listIterator = wayPoses.listIterator();
@@ -182,6 +184,22 @@ public class ScanDuringInit_UsingConfig extends eBotsAuton2019 {
 
             travelLegCount++;
         }
+
+        executePostMoveActivity(trackingPose, alliance);
+        yoyo.setPower(YOYO_EXTEND);
+        StopWatch yoyoTimer = new StopWatch();
+        long yoyoTimeout = 5000L;
+        while (opModeIsActive() && yoyoTimer.getElapsedTimeMillis() < yoyoTimeout){
+            //Let it extend
+        }
+
+        long holdDuration = 29000L - overallTimer.getElapsedTimeMillis();
+        Pose targetPose = new Pose (trackingPose.getX(), trackingPose.getY(), trackingPose.getHeading());
+        trackingPose.setTargetPose(targetPose);
+        if(holdDuration>0) defendPosition(trackingPose, holdDuration, speedConfig, gyroConfig, accuracyConfig, softStartConfig, imu, telemetry);
+
+        yoyo.setPower(YOYO_STOP);
+
         if (debugOn) Log.d(logTag, "All Legs Completed, current Position " + trackingPose.toString());
         if (debugOn) Log.d(logTag, "Overall Time: " + overallTime.toString());
     }
@@ -243,7 +261,8 @@ public class ScanDuringInit_UsingConfig extends eBotsAuton2019 {
         if (debugOn) Log.d(logTag, "Stone released "  + overallTime.toString());
 
         //  Back away from Foundation Plate
-        targetPose = bridge.getFoundationSideStagingPose(Bridge.BridgeLane.INNER_LANE,20.0);
+        double headingOverride = (alliance == Alliance.RED) ? 15.0 : -15.0;
+        targetPose = bridge.getFoundationSideStagingPose(Bridge.BridgeLane.INNER_LANE,headingOverride);
         trackingPose.setTargetPose(targetPose);
         moveToTargetPose(trackingPose, speedConfig, gyroConfig, accuracyConfig, softStartConfig,imu, telemetry);
         if (debugOn) Log.d(logTag, "backed away from foundation plate "  + overallTime.toString());
@@ -251,68 +270,11 @@ public class ScanDuringInit_UsingConfig extends eBotsAuton2019 {
         //drop lifter
         findLifterZero();
 
-        //Go get the other SkyStone
-        //  Can't use possessSkyStone for this because lifter is down and must spin before can grab
-
-        driveToSecondSkyStone(trackingPose);        //Need new method to prevent spinning
-        if (debugOn) Log.d(logTag, "....COMPLETED Drive to second Skystone " + overallTime.toString());
-        if (debugOn) Log.d(logTag, "endPose Position:" + trackingPose.toString());
-
-        setLifterHeightToGrabStone();
-
-        //  Now spin
-        trackingPose.getTargetPose().setHeading(skyStoneHeading);
-        //  Apply extra spin if skystone is against wall
-        if (extraSpinRequired) {
-            targetPose = trackingPose.getTargetPose();
-            double newAngle = (Math.abs(skyStoneHeading) + 15) * Math.signum(skyStoneHeading);
-            targetPose.setHeading(newAngle);
-        }
-        moveToTargetPose(trackingPose, speedConfig, gyroConfig, accuracyConfig, softStartConfig,imu, telemetry);
-
-        if (debugOn) Log.d(logTag, "Ready to grab stone " + overallTime.toString());
-
-        refinePosition(FieldObject.QUARRY_STONE, trackingPose, overallTime);
-        autoGrabBlockNoMovement(getDriveMotors());
-        //**  Move back a little to clear quarry
-        moveBackToClearQuarry(trackingPose, overallTime);
-
-        //rotate to the foundation
-        //targetPose = new Pose (trackingPose.getX(), trackingPose.getY(), 0.0);
-        //trackingPose.setTargetPose(targetPose);
-        //moveToTargetPose(trackingPose, speedConfig, gyroConfig, accuracyConfig, softStartConfig,imu, telemetry);
-
-        //Travel under bridge toward foundation
-        travelUnderBridgeToFoundation(trackingPose, overallTime);
 
         //  Once arrive at the foundation plate, start extending tape measure
         StopWatch tapeExtendTime = new StopWatch();
         long tapeExtendTimeOut = 6000L;
         yoyo.setPower(YOYO_EXTEND);
-
-
-        setLifterHeightToPlaceStone();  //raise lifter to place on foundation
-
-        //**  Refine position to foundation
-        if (debugOn) Log.d(logTag, "Refining position to foundation...");
-        refinePosition(FieldObject.FOUNDATION, trackingPose, overallTime);
-        if (debugOn) Log.d(logTag, "...COMPLETED Refining position to foundation " + overallTime.toString());
-
-
-        //  Dump stone
-        autoReleaseStone(Speed.FAST, overallTime);
-        if (debugOn) Log.d(logTag, "Second skyStone released "  + overallTime.toString());
-
-        //  Back away from Foundation Plate
-
-        //  Back away from Foundation Plate
-        targetPose = bridge.getFoundationSideStagingPose(Bridge.BridgeLane.INNER_LANE,20.0);
-        trackingPose.setTargetPose(targetPose);
-        moveToTargetPose(trackingPose, speedConfig, gyroConfig, accuracyConfig, softStartConfig,imu, telemetry);
-        if (debugOn) Log.d(logTag, "backed away from foundation plate "  + overallTime.toString());
-
-        //drop lifter
-        findLifterZero();
 
         //  Wait for tape measure to stop
         while (opModeIsActive() && tapeExtendTime.getElapsedTimeMillis() < tapeExtendTimeOut){

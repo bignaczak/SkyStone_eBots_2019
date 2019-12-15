@@ -6,6 +6,7 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import java.util.ArrayList;
 
 @TeleOp
+@Deprecated
 public class ZZZ_Teleop_Camera extends eBotsAuton2019 {
 
 

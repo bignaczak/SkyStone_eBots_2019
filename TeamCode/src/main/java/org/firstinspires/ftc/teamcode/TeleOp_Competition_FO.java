@@ -25,6 +25,7 @@ public class TeleOp_Competition_FO extends eBotsOpMode2019 {
         if (motorList.size()>1) motorList.clear();  //Make sure there aren't any items in the list
         initializeDriveMotors(motorList, true);
         initializeImu();
+        boolean driveFieldOriented = false;
 
         //***************************************************************
         //Initialize the variables that are being used in the main loop
@@ -94,160 +95,20 @@ public class TeleOp_Competition_FO extends eBotsOpMode2019 {
         findLifterZero();
 
         while(opModeIsActive()) {
-            //GAMEPAD1 INPUTS
-            //----------------------------------------
-            //Get the drive inputs from the controller
-            //  [LEFT STICK]   --> Direction and Speed
-            //  [RIGHT STICK]  --> X Direction dictates spin rate to rotate about robot center
-            //  [LEFT TRIGGER] --> Variable reduction in robot speed to allow for fine position adjustment
-            //  [RIGHT BUMPER] --> Speed boost, maximized motor drive speed
+            if (gamepad1.start && gamepad1.left_bumper){
+                driveFieldOriented = true;
+            } else if (gamepad1.start){
+                driveFieldOriented = false;
+            }
 
-            driveX = -gamepad1.left_stick_x;        //Read left stick position for left/right motion
-            driveY = -gamepad1.left_stick_y;       //Read left stick position for forward/reverse Motion
-            spin = -gamepad1.right_stick_x * spinScaleFactor; //This is used to determine how to spin the robot
-            fineAdjust = gamepad1.left_trigger;     //Pull to slow motion
-            speedBoostOn = gamepad1.right_bumper;   //Push to maximize motor drives
-
-            //r gives the left stick's offset from 0 position by calculating hypotenuse of x and y offset
-            r = Math.hypot(driveX, driveY);
-
-            //Robot angle calculates the angle (in radians) and then subtracts pi/4 (45 degrees) from it
-            //The 45 degree shift aligns the mecanum vectors for drive
-            robotAngle = Math.atan2(driveX, driveY);  //  NOTE:  x AND y are reversed in this formula from other OpModes
-
-            radHeading = getGyroReadingRad();
-            calculateFieldOrientedDriveVector(robotAngle, radHeading,r,spin,driveValues);
-
-            //Now allow for fine maneuvering by allowing a slow mode when pushing trigger
-            //Trigger is an analog input between 0-1, so it allows for variable adjustment of speed
-            //Now scale the drive values based on the level of the trigger
-            //We don't want to trigger to allow the joystick to be completely negated
-            //And we don't want trivial amounts of speed reduction
-            //Initialized variable above Set threshold value to ~0.2 (fineAdjustThreshold)
-            // and only allow 80% reduction of speed (fineAdjustMaxReduction)
-            if (fineAdjust >= fineAdjustThreshold) {
-                fineAdjustOn = true;
-                fineAdjust *= fineAdjustMaxReduction;
+            if (!driveFieldOriented){
+                processDriverControls();
             } else {
-                fineAdjustOn = false;
-                fineAdjust = 0;
-            }
-            fineAdjust = 1 - fineAdjust;
-
-            if (fineAdjustOn) scaleDrive(fineAdjust, driveValues);    //Apply Fine Adjust
-
-
-            //Now maximize speed by applying a speed boost
-            //The drive calculation sometimes doesn't set the peak drive to 1, this corrects that
-            if (!fineAdjustOn & speedBoostOn) {      //Fine Adjust mode takes precedent over speed boost
-                maxValue = findMaxAbsValue(driveValues);  //See what the max drive value is set to
-                if (maxValue < 1 & maxValue > 0)
-                    scaleDrive(1 / maxValue, driveValues);  //If max value isn't 1, Scale the values up so max is 1
+                processDriverControlsFieldOriented();
             }
 
-            //Now actually assign the calculated drive values to the motors in motorList
-            int i = 0;
-            for (DcMotor m : motorList) {
-                m.setPower(driveValues[i]);
-                i++;
-            }
-
-            //GAMEPAD2 INPUTS
-            //----------------------------------------
-            //Y - raise foundation rake (has override)
-            //A - lower foundation rake (has override)
-            //dpad_Down - Set lifter height to grab stone
-            //left Stick - lifter up and down
-
-
-            //----------RAKE INPUTS----------------
-            if (!rakeBusy && gamepad2.y && !gamepad2.left_bumper){
-                foundationRakePosition = RAKE_UP;
-                rakeTimer.startTimer();
-                rakeBusy = true;
-                foundationRake.setPosition(foundationRakePosition);
-
-            } else if (!rakeBusy && gamepad2.a && !gamepad2.left_bumper){
-                foundationRakePosition = RAKE_DOWN;
-                rakeTimer.startTimer();
-                rakeBusy = true;
-                foundationRake.setPosition(foundationRakePosition);
-
-                //these 2 are override conditions
-            } else if(!rakeBusy && gamepad2.a && gamepad2.left_bumper) {
-                if (foundationRakePosition < 1.0) foundationRakePosition += rakeIncrement;
-                rakeTimer.startTimer();
-                rakeBusy = true;
-                foundationRake.setPosition(foundationRakePosition);
-            } else if(!rakeBusy && gamepad2.y && gamepad2.left_bumper) {
-                if (foundationRakePosition > 0.0) foundationRakePosition -= rakeIncrement;
-                rakeTimer.startTimer();
-                rakeBusy = true;
-                foundationRake.setPosition(foundationRakePosition);
-            } else if (rakeBusy && rakeTimer.getElapsedTimeMillis()>timerLimit){
-                rakeBusy = false;
-            }
-
-            //----------rollerGripper INPUTS----------------
-            if (gamepad2.right_bumper && !gamepad2.left_bumper) {
-                //----------Ingest----------------
-                rollerGripper.setPower(-rollerGripperPowerLevel);
-            } else if (gamepad2.right_trigger > 0.3 && !gamepad2.left_bumper) {
-                //----------release----------------
-                rollerGripper.setPower(rollerGripperPowerLevel);
-            } else if(gamepad2.left_bumper && gamepad2.right_bumper){
-                //----------Initiate AutoGrab----------------
-                autoGrabStone(motorList);
-            } else if(gamepad2.left_bumper && gamepad2.right_trigger > 0.3){
-                //----------Initiate AutoRelease----------------
-                autoReleaseStone(eBotsAuton2019.Speed.SLOW);
-
-            }
-            else rollerGripper.setPower(0.0);
-
-
-
-
-            //----------Lifter INPUTS----------------
-            // INTENDED FUNCTION
-            //  1) Move down if left stick pushing down and not at limit
-            //  2) Move up if left stick pushing up and not at limit
-            //  3) Hold position if not moving stick
-            lifterUserInput = -gamepad2.left_stick_y;   //change sign for readability
-
-            if (lifterUserInput < -0.3){
-                //This is for going down
-                //  1) Move down if left stick pushing down and not at limit
-                moveLifter(LifterDirection.DOWN);
-
-            } else if (lifterUserInput > 0.3){
-                //This is for going up
-                //  2) Move up if left stick pushing up and not at limit
-                moveLifter(LifterDirection.UP);
-
-            } else if(gamepad2.dpad_down) {
-                setLifterHeightToGrabStone();
-            }else if (Math.abs(lifterUserInput) <= 0.3) {
-                //  3) Hold position if not moving stick
-                holdLifterAtCurrentPosition();
-            }
-
-            //----------Adjust lifter speed----------------
-            if (!lifterBusy && gamepad2.left_bumper && gamepad2.right_stick_y < -0.3){
-                lifterPowerLevel += 0.05;
-                if(lifterPowerLevel>1.0) lifterPowerLevel = 1.0;
-                lifter.setPower(lifterPowerLevel);
-                lifterBusy = true;
-                lifterTimer.startTimer();
-            } else if (!lifterBusy && gamepad2.left_bumper && gamepad2.right_stick_y > 0.3) {
-                lifterPowerLevel -= 0.05;
-                if(lifterPowerLevel<0.0) lifterPowerLevel = 0.0;
-                lifter.setPower(lifterPowerLevel);
-                lifterBusy = true;
-                lifterTimer.startTimer();
-            } else if (lifterBusy && lifterTimer.getElapsedTimeMillis()>lifterTimerLimit){
-                lifterBusy = false;
-            }
+            processManualManipControls();
+            processManualManipControls();
             writeTelemetry();
         }
     }

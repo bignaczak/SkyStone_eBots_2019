@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 
@@ -8,6 +9,7 @@ import java.util.ArrayList;
 import static java.lang.String.format;
 
 @TeleOp
+@Disabled
 public class TeleOp_EncoderCalibration extends eBotsOpMode2019 {
 
     /**
